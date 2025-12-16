@@ -118,6 +118,19 @@ public class GameCoordinator
             return;
         }
         
+        // Vérifier qu'on ne dépasse pas 2 joueurs
+        int currentPlayerCount;
+        lock (_playersLock)
+        {
+            currentPlayerCount = _players.Count;
+        }
+        
+        if (currentPlayerCount >= 2)
+        {
+            await SendErrorAsync(connection, "TOO_MANY_PLAYERS", "Le serveur est plein. Maximum 2 joueurs.");
+            return;
+        }
+        
         var connectData = MessagePackSerializer.Deserialize<PlayerConnectData>(message.Data);
         
         // Générer un ID unique pour le joueur
@@ -163,11 +176,22 @@ public class GameCoordinator
             return;
         }
         
+        // Vérifier si on peut démarrer une partie (2 joueurs prêts)
+        List<PlayerConnection> readyPlayers;
+        lock (_playersLock)
+        {
+            readyPlayers = _players.Values.Where(p => p.IsReady).ToList();
+        }
+        
+        if (readyPlayers.Count >= 2)
+        {
+            await SendErrorAsync(connection, "TOO_MANY_PLAYERS", "Une partie est déjà en cours. Maximum 2 joueurs.");
+            return;
+        }
+        
         connection.IsReady = true;
         Console.WriteLine($"[Coordinator] Joueur prêt: {connection.PlayerName}");
         
-        // Vérifier si on peut démarrer une partie (2 joueurs prêts)
-        List<PlayerConnection> readyPlayers;
         lock (_playersLock)
         {
             readyPlayers = _players.Values.Where(p => p.IsReady).ToList();
@@ -176,10 +200,6 @@ public class GameCoordinator
         if (readyPlayers.Count == 2 && _currentGame == null)
         {
             await StartNewGameAsync(readyPlayers[0], readyPlayers[1]);
-        }
-        else if (readyPlayers.Count > 2)
-        {
-            await SendErrorAsync(connection, "TOO_MANY_PLAYERS", "Maximum 2 joueurs pour le morpion");
         }
     }
     
