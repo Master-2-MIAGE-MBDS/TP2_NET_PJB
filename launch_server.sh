@@ -3,28 +3,28 @@ set -euo pipefail
 
 PORT=${1:-7777}
 
-echo "=========================================="
-echo "  🎮 GAUNIV - SERVEUR MORPION (TCP)"
-echo "=========================================="
+echo ""
+echo "╔════════════════════════════════════════╗"
+echo "║  🎮 GAUNIV - SERVEUR MORPION (TCP)    ║"
+echo "║     Max 2 joueurs par partie            ║"
+echo "╚════════════════════════════════════════╝"
 echo ""
 
 PROJECT_DIR="/workspaces/TP2_NET_PJB/Gauniv.GameServer"
 cd "$PROJECT_DIR"
 
-echo "📦 Compilation (tentative 1)..."
-if dotnet build -v minimal; then
-	echo "✅ Build OK"
+echo "📦 Compilation du serveur..."
+if dotnet build -v minimal 2>/dev/null; then
+	echo "✅ Build réussi"
 else
-	echo "⚠️  Build échoué. Nettoyage des caches et nouvelle tentative..."
-	# Corrige les erreurs MSB3492 (fichiers cache corrompus/verrouillés)
+	echo "⚠️  Build échoué. Nettoyage..."
 	rm -f obj/Debug/net10.0/*.cache 2>/dev/null || true
 	rm -f obj/Debug/net10.0/*.editorconfig 2>/dev/null || true
-	rm -f obj/Debug/net10.0/*.dll 2>/dev/null || true
-	dotnet clean -v minimal || true
-	dotnet restore -v minimal
-	echo "📦 Compilation (tentative 2)..."
+	dotnet clean -v minimal 2>/dev/null || true
+	dotnet restore -v minimal 2>/dev/null || true
+	echo "📦 Nouvelle tentative de build..."
 	dotnet build -v minimal
-	echo "✅ Build OK (après nettoyage)"
+	echo "✅ Build réussi (après nettoyage)"
 fi
 
 echo ""
@@ -32,5 +32,4 @@ echo "🚀 Démarrage du serveur sur le port ${PORT}..."
 echo "   Astuce: Ctrl+C pour arrêter proprement"
 echo ""
 
-# Lance le serveur en avant-plan pour voir les logs et permettre Ctrl+C
 exec dotnet run -- "${PORT}"

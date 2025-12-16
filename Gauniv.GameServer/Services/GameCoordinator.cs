@@ -59,7 +59,6 @@ public class GameCoordinator
             
             // Notifier les autres joueurs
             _ = BroadcastPlayerLeftAsync(connection.PlayerId, connection.PlayerName ?? "Unknown");
-            _ = BroadcastGameStateAsync();
             
             Console.WriteLine($"[Coordinator] Joueur déconnecté: {connection.PlayerName} ({connection.PlayerId})");
         }
@@ -150,56 +149,17 @@ public class GameCoordinator
         
         // Notifier les autres joueurs
         await BroadcastPlayerJoinedAsync(playerId, connectData.PlayerName);
-        
-        // Envoyer l'état du jeu à tous
-        await BroadcastGameStateAsync();
-    }
-    
-    private async Task HandlePlayerDisconnectAsync(PlayerConnection connection, GameMessage message)
-    {
-        if (connection.PlayerId != null)
-        {
-            lock (_playersLock)
-            {
-                _players.Remove(connection.PlayerId);
-            }
-            
-            await BroadcastPlayerLeftAsync(connection.PlayerId, connection.PlayerName ?? "Unknown");
-            await BroadcastGameStateAsync();
-        }
-    }
-    
-    private async Task HandlePlayerReadyAsync(PlayerConnection connection, GameMessage message)
-    {
-        if (connection.PlayerId == null)
-        {
-            return;
-        }
-        
-        // Vérifier si on peut démarrer une partie (2 joueurs prêts)
-        List<PlayerConnection> readyPlayers;
+
+        // Si c'est le 2e joueur qui se connecte, démarrer la partie automatiquement
+        List<PlayerConnection> allPlayers;
         lock (_playersLock)
         {
-            readyPlayers = _players.Values.Where(p => p.IsReady).ToList();
+            allPlayers = new List<PlayerConnection>(_players.Values);
         }
-        
-        if (readyPlayers.Count >= 2)
+
+        if (allPlayers.Count == 2 && _currentGame == null)
         {
-            await SendErrorAsync(connection, "TOO_MANY_PLAYERS", "Une partie est déjà en cours. Maximum 2 joueurs.");
-            return;
-        }
-        
-        connection.IsReady = true;
-        Console.WriteLine($"[Coordinator] Joueur prêt: {connection.PlayerName}");
-        
-        lock (_playersLock)
-        {
-            readyPlayers = _players.Values.Where(p => p.IsReady).ToList();
-        }
-        
-        if (readyPlayers.Count == 2 && _currentGame == null)
-        {
-            await StartNewGameAsync(readyPlayers[0], readyPlayers[1]);
+            await StartNewGameAsync(allPlayers[0], allPlayers[1]);
         }
     }
     
@@ -218,6 +178,7 @@ public class GameCoordinator
         }
         
         Console.WriteLine($"[Coordinator] Nouvelle partie de morpion: {player1.PlayerName} (X) vs {player2.PlayerName} (O)");
+        Console.WriteLine($"[Coordinator] État du jeu: {game.Board.Status}, Joueur courant: {game.Board.CurrentPlayer}");
         
         var startMessage = new GameMessage
         {
@@ -225,8 +186,38 @@ public class GameCoordinator
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
         };
         
+        Console.WriteLine($"[Coordinator] Envoi de GameStarted...");
         await _server.BroadcastMessageAsync(startMessage);
+        
+        Console.WriteLine($"[Coordinator] Envoi du GameState...");
         await BroadcastTicTacToeStateAsync();
+    }
+    
+    private async Task HandlePlayerDisconnectAsync(PlayerConnection connection, GameMessage message)
+    {
+        if (connection.PlayerId != null)
+        {
+            lock (_playersLock)
+            {
+                _players.Remove(connection.PlayerId);
+            }
+
+            await BroadcastPlayerLeftAsync(connection.PlayerId, connection.PlayerName ?? "Unknown");
+        }
+    }
+    
+    private async Task HandlePlayerReadyAsync(PlayerConnection connection, GameMessage message)
+    {
+        if (connection.PlayerId == null)
+        {
+            return;
+        }
+
+        connection.IsReady = true;
+        Console.WriteLine($"[Coordinator] Joueur prêt: {connection.PlayerName}");
+        
+        // La partie démarre automatiquement quand 2 joueurs se connectent
+        // Cette méthode est conservée pour compatibilité mais n'est plus critique
     }
     
     private async Task HandleMakeMoveAsync(PlayerConnection connection, GameMessage message)
