@@ -17,12 +17,12 @@ public enum CellState
 /// </summary>
 public enum GameStatus
 {
-    WaitingForPlayers,
-    InProgress,
-    XWins,
-    OWins,
-    Draw,
-    Cancelled
+    WaitingForPlayers = 0,
+    InProgress = 1,
+    XWins = 2,
+    OWins = 3,
+    Draw = 4,
+    Cancelled = 5
 }
 
 /// <summary>
