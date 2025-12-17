@@ -1,0 +1,27 @@
+﻿@model List<Gauniv.WebServer.Dtos.GameDto>
+
+@{
+    ViewData["Title"] = "Jeux";
+}
+<link href="~/Content/PagedList.css" rel="stylesheet" type="text/css" />
+<h1>Liste des jeux</h1>
+
+<table class="table">
+    <thead>
+    <tr>
+        <th>Id</th>
+        <th>Nom</th>
+        <th>Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    @foreach (var g in Model)
+    {
+        <tr>
+            <td>@g.Id</td>
+            <td>@g.Name</td>
+            <td>@g.Description</td>
+        </tr>
+    }
+    </tbody>
+</table>

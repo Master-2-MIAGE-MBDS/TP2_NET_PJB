@@ -28,10 +28,23 @@
 #endregion
 using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace Gauniv.WebServer.Data
 {
     public class User : IdentityUser
     {
+        // Prénom
+        [Required]
+        [MaxLength(100)]
+        public string FirstName { get; set; } = string.Empty;
+
+        // Nom
+        [Required]
+        [MaxLength(100)]
+        public string LastName { get; set; } = string.Empty;
+        
+        [JsonIgnore]
+        public ICollection<Game> PurchasedGames { get; set; } = new List<Game>();
     }
 }
