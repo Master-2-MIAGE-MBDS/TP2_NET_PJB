@@ -39,5 +39,7 @@ namespace Gauniv.WebServer.Data
         {
         }
         public DbSet<Game> Games { get; set; }
+        
+        public DbSet<Categorie> Categories { get; set; }
     }
 }
