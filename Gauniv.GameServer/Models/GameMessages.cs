@@ -21,6 +21,7 @@ public enum MessageType
     // Messages spécifiques Morpion
     MakeMove = 10,
     RequestRematch = 11,
+    SyncGameState = 15,
     
     // Messages serveur -> client
     ServerWelcome = 100,
@@ -40,6 +41,9 @@ public enum MessageType
     GameWon = 112,
     GameDraw = 113,
     RematchOffered = 114,
+    MoveAccepted = 115,
+    MoveRejected = 116,
+    GameStateSync = 117,
 }
 
 /// <summary>
@@ -211,4 +215,78 @@ public class ErrorData
     
     [Key(1)]
     public string Message { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Données d'un coup joué
+/// </summary>
+[MessagePackObject]
+public class MakeMoveData
+{
+    [Key(0)]
+    public int Position { get; set; } // Position 0-8 sur la grille
+}
+
+/// <summary>
+/// Réponse d'acceptation de coup
+/// </summary>
+[MessagePackObject]
+public class MoveAcceptedData
+{
+    [Key(0)]
+    public string PlayerId { get; set; } = string.Empty;
+    
+    [Key(1)]
+    public int Position { get; set; }
+    
+    [Key(2)]
+    public int MoveIndex { get; set; } // Index du coup (0, 1 ou 2)
+}
+
+/// <summary>
+/// Réponse de rejet de coup
+/// </summary>
+[MessagePackObject]
+public class MoveRejectedData
+{
+    [Key(0)]
+    public string Reason { get; set; } = string.Empty;
+    
+    [Key(1)]
+    public int Position { get; set; }
+}
+
+/// <summary>
+/// État complet du jeu pour synchronisation
+/// </summary>
+[MessagePackObject]
+public class GameStateSyncData
+{
+    [Key(0)]
+    public Dictionary<string, int?[]> PlayerMoves { get; set; } = new(); // playerId -> [pos0, pos1, pos2]
+    
+    [Key(1)]
+    public List<string> PlayerIds { get; set; } = new(); // Liste ordonnée des joueurs
+    
+    [Key(2)]
+    public string? WinnerId { get; set; } // null si pas de gagnant
+    
+    [Key(3)]
+    public string GameStatus { get; set; } = "IN_PROGRESS"; // IN_PROGRESS, FINISHED, WAITING
+}
+
+/// <summary>
+/// Message de victoire
+/// </summary>
+[MessagePackObject]
+public class GameWonData
+{
+    [Key(0)]
+    public string WinnerId { get; set; } = string.Empty;
+    
+    [Key(1)]
+    public string WinnerName { get; set; } = string.Empty;
+    
+    [Key(2)]
+    public int[] WinningPositions { get; set; } = Array.Empty<int>();
 }

@@ -9,19 +9,45 @@ namespace Gauniv.TerminalClient;
 
 public enum MessageType
 {
+    // Messages client -> serveur
     PlayerConnect = 1,
     PlayerDisconnect = 2,
+    PlayerAction = 3,
+    PlayerReady = 4,
+
+    // Lobby / salon
     CreateGame = 12,
     ListGames = 13,
     JoinGame = 14,
-    GameState = 102,
-
+    
+    // Messages spécifiques Morpion
+    MakeMove = 10,
+    RequestRematch = 11,
+    SyncGameState = 15,
+    
+    // Messages serveur -> client
     ServerWelcome = 100,
     ServerError = 101,
+    GameState = 102,
+    PlayerJoined = 103,
+    PlayerLeft = 104,
+    GameStarted = 105,
+    GameEnded = 106,
     GameCreated = 107,
     GameList = 108,
     GameJoined = 109,
+    
+    // Messages spécifiques Morpion serveur
+    MoveMade = 110,
+    InvalidMove = 111,
+    GameWon = 112,
+    GameDraw = 113,
+    RematchOffered = 114,
+    MoveAccepted = 115,
+    MoveRejected = 116,
+    GameStateSync = 117,
 }
+
 
 [MessagePackObject]
 public class GameMessage
@@ -31,6 +57,14 @@ public class GameMessage
     [Key(2)] public long Timestamp { get; set; }
     [Key(3)] public byte[]? Data { get; set; }
 }
+
+[MessagePackObject]
+public class MakeMoveData
+{
+    [Key(0)]
+    public int Position { get; set; } // Position 0-8 sur la grille
+}
+
 
 [MessagePackObject]
 public class PlayerConnectData
@@ -213,12 +247,23 @@ class Program
                 _state = ClientState.Menu;
                 break;
 
-            case MessageType.GameState:
-                int gameState = MessagePackSerializer
+            case MessageType.MoveMade:
+                
+                MakeMoveData moveData = MessagePackSerializer
+                    .Deserialize<MakeMoveData>(msg.Data!);
+                PrintInfo("Mouvement effectué");
+                PrintInfo($"Le serveur a enregistré le mouvement à la position: {moveData.Position}");
+
+                await Task.Delay(5000);
+                await SendGameMovesAsync();
+                break;
+            
+            case MessageType.MoveAccepted:
+                int acceptedState = MessagePackSerializer
                     .Deserialize<int>(msg.Data!);
                 
                 PrintInfo("État du jeu reçu");
-                PrintInfo($"Le serveur a envoyé le mouvement: {gameState}");
+                PrintInfo($"Le serveur a envoyé le mouvement: {acceptedState}");
                 await Task.Delay(5000);
                 await SendGameMovesAsync();
                 break;
@@ -242,6 +287,10 @@ class Program
                 var err = MessagePackSerializer.Deserialize<ErrorData>(msg.Data!);
                 PrintError(err.Message);
                 _state = ClientState.Menu;
+                break;
+
+            default:
+                PrintError($"Message inconnu: {msg.Type}");
                 break;
         }
     }
@@ -332,13 +381,14 @@ class Program
         
         await SendAsync(new GameMessage
         {
-            Type = MessageType.GameState,
+            Type = MessageType.MakeMove,
             Data = MessagePackSerializer.Serialize(
-                _random.Next(0, 8)
+                new MakeMoveData { Position = _random.Next(0, 8) }
             )
         }
         );
     }
+
 
     private static void DisplayGames()
     {

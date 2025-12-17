@@ -13,6 +13,13 @@ public class GameRoom
     public string Name { get; set; }
     public List<string> PlayerIds { get; set; } = new();
     public List<string> SpectatorIds { get; set; } = new();
+    
+    // Stockage des coups: playerId -> tableau de 3 positions (null si pas encore joué)
+    public Dictionary<string, int?[]> PlayerMoves { get; set; } = new();
+    
+    // État du jeu
+    public string GameStatus { get; set; } = "WAITING"; // WAITING, IN_PROGRESS, FINISHED
+    public string? WinnerId { get; set; }
 
     public GameRoom(string gameId, string name)
     {
@@ -21,6 +28,38 @@ public class GameRoom
     }
 
     public int TotalPlayers => PlayerIds.Count + SpectatorIds.Count;
+    
+    /// <summary>
+    /// Initialise les coups pour un joueur
+    /// </summary>
+    public void InitializePlayer(string playerId)
+    {
+        if (!PlayerMoves.ContainsKey(playerId))
+        {
+            PlayerMoves[playerId] = new int?[3];
+        }
+    }
+    
+    /// <summary>
+    /// Obtient toutes les positions occupées sur la grille
+    /// </summary>
+    public HashSet<int> GetOccupiedPositions()
+    {
+        var occupied = new HashSet<int>();
+        foreach (var moves in PlayerMoves.Values)
+        {
+            foreach (var pos in moves)
+            {
+                if (pos.HasValue)
+                {
+                    occupied.Add(pos.Value);
+                }
+            }
+        }
+        return occupied;
+    }
+    
+
 }
 
 /// <summary>
@@ -98,8 +137,16 @@ public class GameCoordinator
                 await HandleJoinGameAsync(connection, message);
                 break;
                 
-            case MessageType.GameState:
-                await HandleGameStateAsync(connection, message);
+            // case MessageType.GameState:
+            //     await HandleGameStateAsync(connection, message);
+            //     break;
+                
+            case MessageType.MakeMove:
+                await HandleMakeMoveAsync(connection, message);
+                break;
+                
+            case MessageType.SyncGameState:
+                await HandleSyncGameStateAsync(connection, message);
                 break;
                 
             default:
@@ -162,6 +209,7 @@ public class GameCoordinator
         var gameId = Guid.NewGuid().ToString();
         var room = new GameRoom(gameId, roomName);
         room.PlayerIds.Add(connection.PlayerId);
+        room.InitializePlayer(connection.PlayerId); // Initialiser les coups du créateur
 
         lock (_roomsLock)
         {
@@ -280,6 +328,19 @@ public class GameCoordinator
             _playerRoomMap[connection.PlayerId] = room.GameId;
         }
 
+        // Initialiser les coups du joueur s'il n'est pas spectateur
+        if (room.PlayerIds.Count <= 2)
+        {
+            room.InitializePlayer(connection.PlayerId);
+        }
+        
+        // Démarrer la partie si 2 joueurs
+        if (room.PlayerIds.Count == 2 && room.GameStatus == "WAITING")
+        {
+            room.GameStatus = "IN_PROGRESS";
+            Console.WriteLine($"[Coordinator] Partie démarrée: '{room.Name}'");
+        }
+
         var response = new GameMessage
         {
             Type = MessageType.GameJoined,
@@ -294,7 +355,7 @@ public class GameCoordinator
                     PlayerCount = room.PlayerIds.Count,
                     MaxPlayers = 2
                 },
-                Role = room.PlayerIds.Count >= 2 ? "SPECTATEUR" : "JOUEUR"
+                Role = room.PlayerIds.Count > 2 ? "SPECTATEUR" : "JOUEUR"
             })
         };
 
@@ -333,14 +394,8 @@ public class GameCoordinator
 
         try
         {
-            // Deserialiser la liste 3x3
+            // Deserialiser l'état du jeu
             var lastMoves = MessagePackSerializer.Deserialize<int>(message.Data);
-
-            if (lastMoves == null)
-            {
-                await SendErrorAsync(connection, "INVALID_FORMAT", "Doit contenir les coups des 2 joueurs");
-                return;
-            }
 
             Console.WriteLine($"[Coordinator] État du jeu reçu de {connection.PlayerName}: {lastMoves}");
 
@@ -479,62 +534,418 @@ public class GameCoordinator
 
         Console.WriteLine($"[Coordinator] Joueur déconnecté: {connection.PlayerName}");
     }
+
+
+    private void showTheCurrentGameState(GameRoom room)
+    {
+
+        string[][] tableInit = new string[3][]
+        {
+            new string[3] {"0","1","2"},
+            new string[3] {"3","4","5"},
+            new string[3] {"6","7","8"}
+        };
+
+        Console.WriteLine($"[Coordinator] État actuel de la partie '{room.Name}':");
+        for (int i = 0; i < room.PlayerIds.Count; i++)
+        {
+            var playerId = room.PlayerIds[i];
+            var moves = room.PlayerMoves[playerId];
+            var playerName = GetPlayerName(playerId);
+            for (int j = 0; j < moves.Length; j++)
+            {
+                if (moves[j].HasValue)
+                {
+                    int pos = moves[j].Value;
+                    int row = pos / 3;
+                    int col = pos % 3;
+                    tableInit[row][col] = playerName.ToString();
+                }
+            }
+        }
+
+        var maxSizeName = room.PlayerIds
+            .Select(id => GetPlayerName(id).Length)
+            .Max();
+
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                Console.Write(tableInit[i][j].PadRight(maxSizeName + 2));
+            }
+            Console.WriteLine();
+        }
+            
+    }
+
+
+    /// <summary>
+    /// Save un coup joué par un joueur
+    /// </summary>
+    
+    private void SaveMove(string playerId, int position, GameRoom room)
+    {
+        
+        if (room == null) return;
+
+        // Enregistrer le coup
+        var moves = room.PlayerMoves[playerId];
+        
+        // on fait un lifo pour les moves donc on enleve le premier element et on ajoute a la fin le nouveau
+        for (int i = 0; i < 2; i++)
+        {
+            moves[i] = moves[i + 1];
+        }
+        moves[2] = position;
+
+    }
+
+    
+    /// <summary>
+    /// Gère un coup joué par un joueur
+    /// </summary>
+    private async Task HandleMakeMoveAsync(PlayerConnection connection, GameMessage message)
+    {
+        if (connection.PlayerId == null)
+        {
+            await SendErrorAsync(connection, "NOT_CONNECTED", "Identité inconnue");
+            return;
+        }
+
+        if (message.Data == null)
+        {
+            await SendErrorAsync(connection, "INVALID_DATA", "Données manquantes");
+            return;
+        }
+
+        // Trouver la room du joueur
+        string? roomId;
+        lock (_mapLock)
+        {
+            _playerRoomMap.TryGetValue(connection.PlayerId, out roomId);
+        }
+
+        if (roomId == null)
+        {
+            await SendErrorAsync(connection, "NO_ROOM", "Pas en room");
+            return;
+        }
+
+        GameRoom? room;
+        lock (_roomsLock)
+        {
+            _rooms.TryGetValue(roomId, out room);
+        }
+
+        if (room == null)
+        {
+            await SendErrorAsync(connection, "ROOM_NOT_FOUND", "Room introuvable");
+            return;
+        }
+
+        // Vérifier que le joueur est bien un joueur actif (pas spectateur)
+        if (!room.PlayerIds.Contains(connection.PlayerId))
+        {
+            await SendMoveRejectedAsync(connection, -1, "Vous êtes spectateur");
+            return;
+        }
+
+        // Vérifier que la partie est en cours
+        if (room.GameStatus != "IN_PROGRESS")
+        {
+            await SendMoveRejectedAsync(connection, -1, "La partie n'est pas en cours");
+            return;
+        }
+
+        var moveData = MessagePackSerializer.Deserialize<MakeMoveData>(message.Data);
+        int position = moveData.Position;
+
+        var bu_PlayerMoves = room.PlayerMoves[connection.PlayerId];
+
+
+        // Valider le coup
+        if (position < 0 || position > 8)
+        {
+            await SendMoveRejectedAsync(connection, position, "Position invalide (doit être entre 0 et 8)");
+            return;
+        }
+
+        var occupied = room.GetOccupiedPositions();
+        if (occupied.Contains(position))
+        {
+            await SendMoveRejectedAsync(connection, position, "Case déjà occupée");
+            return;
+        }
+
+        
+
+        // Enregistrer le coup
+        SaveMove(connection.PlayerId, position, room);
+        Console.WriteLine($"[Coordinator] Coup accepté: {connection.PlayerName} -> position {position} dans '{room.Name}'");
+
+        // Envoyer l'acceptation au joueur
+        var acceptedData = new MoveAcceptedData
+        {
+            PlayerId = connection.PlayerId,
+            Position = position,
+            MoveIndex = 2
+        };
+        
+        await connection.SendMessageAsync(new GameMessage
+        {
+            Type = MessageType.MoveAccepted,
+            PlayerId = connection.PlayerId,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Data = MessagePackSerializer.Serialize(acceptedData)
+        });
+
+        // Broadcaster le coup à tous les autres joueurs et spectateurs
+        await BroadcastToRoomExceptAsync(roomId, connection.PlayerId, new GameMessage
+        {
+            Type = MessageType.MoveMade,
+            PlayerId = connection.PlayerId,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Data = MessagePackSerializer.Serialize(acceptedData)
+        });
+
+        showTheCurrentGameState(room);
+
+        // Vérifier la victoire
+        var winner = CheckWinner(room);
+        if (winner != null)
+        {
+            room.GameStatus = "FINISHED";
+            room.WinnerId = winner.PlayerId;
+            
+            var winData = new GameWonData
+            {
+                WinnerId = winner.PlayerId,
+                WinnerName = GetPlayerName(winner.PlayerId),
+                WinningPositions = winner.WinningPositions
+            };
+            
+            Console.WriteLine($"[Coordinator] Victoire de {winData.WinnerName}!");
+            
+            await BroadcastToRoomAsync(roomId, new GameMessage
+            {
+                Type = MessageType.GameWon,
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                Data = MessagePackSerializer.Serialize(winData)
+            });
+        }
+        
+    }
+    
+    /// <summary>
+    /// Synchronise l'état du jeu avec un client
+    /// </summary>
+    private async Task HandleSyncGameStateAsync(PlayerConnection connection, GameMessage message)
+    {
+        if (connection.PlayerId == null)
+        {
+            await SendErrorAsync(connection, "NOT_CONNECTED", "Identité inconnue");
+            return;
+        }
+
+        // Trouver la room du joueur
+        string? roomId;
+        lock (_mapLock)
+        {
+            _playerRoomMap.TryGetValue(connection.PlayerId, out roomId);
+        }
+
+        if (roomId == null)
+        {
+            await SendErrorAsync(connection, "NO_ROOM", "Pas en room");
+            return;
+        }
+
+        GameRoom? room;
+        lock (_roomsLock)
+        {
+            _rooms.TryGetValue(roomId, out room);
+        }
+
+        if (room == null)
+        {
+            await SendErrorAsync(connection, "ROOM_NOT_FOUND", "Room introuvable");
+            return;
+        }
+
+        // Créer l'état de synchronisation
+        var syncData = new GameStateSyncData
+        {
+            PlayerMoves = room.PlayerMoves,
+            PlayerIds = room.PlayerIds,
+            GameStatus = room.GameStatus
+        };
+
+        Console.WriteLine($"[Coordinator] Synchronisation envoyée à {connection.PlayerName}");
+
+        await connection.SendMessageAsync(new GameMessage
+        {
+            Type = MessageType.GameStateSync,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Data = MessagePackSerializer.Serialize(syncData)
+        });
+    }
+    
+    /// <summary>
+    /// Envoie un rejet de coup
+    /// </summary>
+    private async Task SendMoveRejectedAsync(PlayerConnection connection, int position, string reason)
+    {
+        var rejectedData = new MoveRejectedData
+        {
+            Position = position,
+            Reason = reason
+        };
+
+        await connection.SendMessageAsync(new GameMessage
+        {
+            Type = MessageType.MoveRejected,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Data = MessagePackSerializer.Serialize(rejectedData)
+        });
+    }
+    
+    /// <summary>
+    /// Broadcast à toute la room sauf un joueur
+    /// </summary>
+    private async Task BroadcastToRoomExceptAsync(string roomId, string exceptPlayerId, GameMessage message)
+    {
+        GameRoom? room;
+        lock (_roomsLock)
+        {
+            _rooms.TryGetValue(roomId, out room);
+        }
+
+        if (room == null) return;
+
+        var allIds = new List<string>();
+        allIds.AddRange(room.PlayerIds);
+        allIds.AddRange(room.SpectatorIds);
+
+        var tasks = new List<Task>();
+        foreach (var playerId in allIds)
+        {
+            if (playerId == exceptPlayerId) continue;
+            
+            PlayerConnection? conn;
+            lock (_connectionsLock)
+            {
+                _allConnections.TryGetValue(playerId, out conn);
+            }
+
+            if (conn != null && conn.IsConnected)
+            {
+                tasks.Add(conn.SendMessageAsync(message));
+            }
+        }
+
+        await Task.WhenAll(tasks);
+    }
+    
+    /// <summary>
+    /// Broadcast à toute la room
+    /// </summary>
+    private async Task BroadcastToRoomAsync(string roomId, GameMessage message)
+    {
+        GameRoom? room;
+        lock (_roomsLock)
+        {
+            _rooms.TryGetValue(roomId, out room);
+        }
+
+        if (room == null) return;
+
+        var allIds = new List<string>();
+        allIds.AddRange(room.PlayerIds);
+        allIds.AddRange(room.SpectatorIds);
+
+        var tasks = new List<Task>();
+        foreach (var playerId in allIds)
+        {
+            PlayerConnection? conn;
+            lock (_connectionsLock)
+            {
+                _allConnections.TryGetValue(playerId, out conn);
+            }
+
+            if (conn != null && conn.IsConnected)
+            {
+                tasks.Add(conn.SendMessageAsync(message));
+            }
+        }
+
+        await Task.WhenAll(tasks);
+    }
+    
+    /// <summary>
+    /// Récupère le nom d'un joueur
+    /// </summary>
+    private string GetPlayerName(string playerId)
+    {
+        PlayerConnection? conn;
+        lock (_connectionsLock)
+        {
+            _allConnections.TryGetValue(playerId, out conn);
+        }
+        return conn?.PlayerName ?? "Inconnu";
+    }
+    
+    /// <summary>
+    /// Vérifie s'il y a un gagnant
+    /// </summary>
+    private WinnerInfo? CheckWinner(GameRoom room)
+    {
+        // Combinaisons gagnantes (lignes, colonnes, diagonales)
+        int[][] winPatterns = new int[][]
+        {
+            new int[] { 0, 1, 2 }, // ligne 1
+            new int[] { 3, 4, 5 }, // ligne 2
+            new int[] { 6, 7, 8 }, // ligne 3
+            new int[] { 0, 3, 6 }, // colonne 1
+            new int[] { 1, 4, 7 }, // colonne 2
+            new int[] { 2, 5, 8 }, // colonne 3
+            new int[] { 0, 4, 8 }, // diagonale 1
+            new int[] { 2, 4, 6 }  // diagonale 2
+        };
+
+        foreach (var playerId in room.PlayerIds)
+        {
+            if (!room.PlayerMoves.ContainsKey(playerId))
+                continue;
+
+            var playerPositions = room.PlayerMoves[playerId]
+                .Where(p => p.HasValue)
+                .Select(p => p!.Value)
+                .ToHashSet();
+
+            foreach (var pattern in winPatterns)
+            {
+                if (pattern.All(pos => playerPositions.Contains(pos)))
+                {
+                    return new WinnerInfo
+                    {
+                        PlayerId = playerId,
+                        WinningPositions = pattern
+                    };
+                }
+            }
+        }
+
+        return null;
+    }
+    
 }
 
 /// <summary>
-/// Données de création de room
+/// Informations sur le gagnant
 /// </summary>
-[MessagePackObject]
-public class CreateGameRequest
+public class WinnerInfo
 {
-    [Key(0)] public string GameName { get; set; } = string.Empty;
-}
-
-/// <summary>
-/// Données de join de room
-/// </summary>
-[MessagePackObject]
-public class JoinGameRequest
-{
-    [Key(0)] public string GameId { get; set; } = string.Empty;
-}
-
-/// <summary>
-/// Résumé d'une room
-/// </summary>
-[MessagePackObject]
-public class GameSummary
-{
-    [Key(0)] public string GameId { get; set; } = string.Empty;
-    [Key(1)] public string Name { get; set; } = string.Empty;
-    [Key(2)] public int PlayerCount { get; set; }
-    [Key(3)] public int MaxPlayers { get; set; }
-}
-
-/// <summary>
-/// Réponse de création de room
-/// </summary>
-[MessagePackObject]
-public class GameCreatedData
-{
-    [Key(0)] public GameSummary Game { get; set; } = new();
-}
-
-/// <summary>
-/// Réponse de join de room
-/// </summary>
-[MessagePackObject]
-public class GameJoinedData
-{
-    [Key(0)] public GameSummary Game { get; set; } = new();
-    [Key(1)] public string Role { get; set; } = string.Empty;
-}
-
-/// <summary>
-/// Réponse listant les rooms
-/// </summary>
-[MessagePackObject]
-public class GameListResponse
-{
-    [Key(0)] public List<GameSummary> Games { get; set; } = new();
+    public string PlayerId { get; set; } = string.Empty;
+    public int[] WinningPositions { get; set; } = Array.Empty<int>();
 }
