@@ -4,7 +4,6 @@ using System.Text;
 
 namespace Gauniv.TerminalClient;
 
-// Enums from server
 public enum CellState
 {
     Empty = 0,
@@ -22,7 +21,6 @@ public enum GameStatus
     Cancelled = 5
 }
 
-// Protocol models (keys must match server)
 public enum MessageType
 {
     PlayerConnect = 1,
@@ -152,18 +150,18 @@ public static class Program
 
         _myPlayerName = name;
         PrintHeader();
-        Console.WriteLine($"🌐 Connexion à {host}:{port} en tant que {name}...");
+        Console.WriteLine($"Connexion à {host}:{port} en tant que {name}...");
 
         using var client = new TcpClient();
         try
         {
             await client.ConnectAsync(host, port);
             _stream = client.GetStream();
-            PrintSuccess("✅ Connecté au serveur!");
+            PrintSuccess("Connecté au serveur");
         }
         catch (Exception ex)
         {
-            PrintError($"❌ Impossible de se connecter: {ex.Message}");
+            PrintError($"Impossible de se connecter: {ex.Message}");
             return;
         }
 
@@ -188,14 +186,14 @@ public static class Program
     private static void PrintHeader()
     {
         Console.WriteLine("\n╔════════════════════════════════════════╗");
-        Console.WriteLine("║  🎮 GAUNIV - MORPION MULTIPLAYER (TCP) ║");
+        Console.WriteLine("║  GAUNIV - MORPION MULTIPLAYER (TCP)    ║");
         Console.WriteLine("╚════════════════════════════════════════╝\n");
     }
 
-    private static void PrintSuccess(string msg) => Console.WriteLine($"{msg}");
-    private static void PrintError(string msg) => Console.WriteLine($"⚠️  {msg}");
-    private static void PrintInfo(string msg) => Console.WriteLine($"ℹ️  {msg}");
-    private static void PrintWaiting(string msg) => Console.WriteLine($"⏳ {msg}");
+    private static void PrintSuccess(string msg) => Console.WriteLine($"[OK] {msg}");
+    private static void PrintError(string msg) => Console.WriteLine($"[ERREUR] {msg}");
+    private static void PrintInfo(string msg) => Console.WriteLine($"[INFO] {msg}");
+    private static void PrintWaiting(string msg) => Console.WriteLine($"[EN ATTENTE] {msg}");
 
     private static async Task SendAsync(GameMessage message)
     {
@@ -285,7 +283,7 @@ public static class Program
 
             case MessageType.GameStarted:
                 _gameInProgress = true;
-                PrintSuccess("🎮 LA PARTIE COMMENCE!");
+                PrintSuccess("La partie commence");
                 PrintInfo("Attente du premier coup...");
                 break;
 
@@ -339,7 +337,7 @@ public static class Program
                         _gameState = gs;
                         DisplayBoard();
                         string winner = _gameState.CurrentPlayer == CellState.X ? _gameState.PlayerXName : _gameState.PlayerOName;
-                        PrintSuccess($"🏆 {winner} a gagné!");
+                        PrintSuccess($"{winner} a gagné");
                         _gameInProgress = false;
                     }
                     catch { }
@@ -347,7 +345,7 @@ public static class Program
                 break;
 
             case MessageType.GameDraw:
-                PrintInfo("🤝 Match nul!");
+                PrintInfo("Match nul");
                 _gameInProgress = false;
                 break;
 
@@ -421,7 +419,7 @@ public static class Program
 
                     if (isMyTurn)
                     {
-                        Console.Write("\n🎯 Entrez votre coup (0-8): ");
+                        Console.Write("\nEntrez votre coup (0-8): ");
                         string? input = await Task.Run(() => Console.ReadLine(), ct);
 
                         if (int.TryParse(input, out int position) && position >= 0 && position <= 8)
@@ -440,7 +438,6 @@ public static class Program
                     }
                     else
                     {
-                        // On attend que l'autre joueur joue
                         await Task.Delay(500, ct);
                     }
                 }
@@ -448,7 +445,7 @@ public static class Program
                 else if (!_gameInProgress && _myPlayerId != null && _hasOtherPlayer)
                 {
                     waitingForRematchResponse = true;
-                    Console.Write("\n🔄 Voulez-vous rejoner? (oui/non): ");
+                    Console.Write("\nVoulez-vous rejouer? (oui/non): ");
                     string? input = await Task.Run(() => Console.ReadLine(), ct);
                     
                     if (input?.ToLower() == "oui" || input?.ToLower() == "o" || input?.ToLower() == "y" || input?.ToLower() == "yes")
@@ -467,7 +464,6 @@ public static class Program
                         break;
                     }
                 }
-                // En attente - ne rien faire, juste attendre les messages du serveur
                 else
                 {
                     await Task.Delay(500, ct);
