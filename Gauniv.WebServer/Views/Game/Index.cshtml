@@ -1,9 +1,9 @@
-﻿@model Gauniv.WebServer.Models.GameIndexViewModel
+﻿@model GameIndexViewModel
 
 @{
     ViewData["Title"] = "Jeux";
 }
-<link href="~/Content/PagedList.css" rel="stylesheet" type="text/css" />
+<link href="~/Content/PagedList.css" rel="stylesheet" type="text/css"/>
 <h1>Liste des jeux</h1>
 
 <form method="get" asp-action="Index" class="row g-3 mb-3">
@@ -16,21 +16,25 @@
             }
             @foreach (var c in Model.Categories)
             {
-                <option value="@c.Id" selected="@(selectedId.HasValue && selectedId.Value == c.Id ? "selected" : null)">@c.Libelle</option>
+                <option value="@c.Id"
+                        selected="@(selectedId.HasValue && selectedId.Value == c.Id ? "selected" : null)">@c.Libelle</option>
             }
         </select>
     </div>
     <div class="col-md-2">
         <label for="minPrice" class="form-label">Prix min</label>
-        <input type="number" step="1" min="0" id="minPrice" name="minPrice" class="form-control" value="@(Model.MinPrice?.ToString() ?? string.Empty)" />
+        <input type="number" step="1" min="0" id="minPrice" name="minPrice" class="form-control"
+               value="@(Model.MinPrice?.ToString() ?? string.Empty)"/>
     </div>
     <div class="col-md-2">
         <label for="maxPrice" class="form-label">Prix max</label>
-        <input type="number" step="1" min="0" max="@Model.GlobalMaxPrice.ToString()" id="maxPrice" name="maxPrice" class="form-control" value="@(Model.MaxPrice?.ToString() ?? string.Empty)" />
+        <input type="number" step="1" min="0" max="@Model.GlobalMaxPrice.ToString()" id="maxPrice" name="maxPrice"
+               class="form-control" value="@(Model.MaxPrice?.ToString() ?? string.Empty)"/>
     </div>
     <div class="col-md-3">
         <label for="search" class="form-label">Rechercher par nom</label>
-        <input type="text" id="search" name="search" class="form-control" value="@(Model.Search ?? string.Empty)" placeholder="Nom du jeu..." />
+        <input type="text" id="search" name="search" class="form-control" value="@(Model.Search ?? string.Empty)"
+               placeholder="Nom du jeu..."/>
     </div>
     <div class="col-md-2 d-flex align-items-end">
         <button type="submit" class="btn btn-primary w-100">Filtrer</button>

@@ -1,5 +1,4 @@
 ﻿using Gauniv.WebServer.Dtos;
-using System.Collections.Generic;
 
 namespace Gauniv.WebServer.Models
 {
@@ -11,8 +10,8 @@ namespace Gauniv.WebServer.Models
 
     public class GameIndexViewModel
     {
-        public List<GameDto> Games { get; set; } = new List<GameDto>();
-        public List<CategorySelect> Categories { get; set; } = new List<CategorySelect>();
+        public List<GameDto> Games { get; set; } = new();
+        public List<CategorySelect> Categories { get; set; } = new();
 
         public int? SelectedCategory { get; set; }
         public decimal? MinPrice { get; set; }

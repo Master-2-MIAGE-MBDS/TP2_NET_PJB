@@ -1,4 +1,5 @@
 ﻿#region Header
+
 // Cyril Tisserand
 // Projet Gauniv - WebServer
 // Gauniv 2025
@@ -25,13 +26,14 @@
 // use or other dealings in this Software without prior written authorization from the  Sophia-Antipolis University.
 // 
 // Please respect the team's standards for any future contribution
+
 #endregion
+
 using Gauniv.WebServer.Data;
-using Gauniv.WebServer.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 
-public class OnlineStatus()
+public class OnlineStatus
 {
     public User User { get; set; }
     public int Count { get; set; }
@@ -41,7 +43,6 @@ namespace Gauniv.WebServer.Websocket
 {
     public class OnlineHub : Hub
     {
-
         public static Dictionary<string, OnlineStatus> ConnectedUsers = [];
         private readonly UserManager<User> userManager;
 
@@ -50,11 +51,11 @@ namespace Gauniv.WebServer.Websocket
             this.userManager = userManager;
         }
 
-        public async override Task OnConnectedAsync()
+        public override async Task OnConnectedAsync()
         {
         }
 
-        public async override Task OnDisconnectedAsync(Exception? exception)
+        public override async Task OnDisconnectedAsync(Exception? exception)
         {
         }
     }
