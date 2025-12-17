@@ -334,42 +334,23 @@ public class GameCoordinator
         try
         {
             // Deserialiser la liste 3x3
-            var lastMoves = MessagePackSerializer.Deserialize<int[][]>(message.Data);
+            var lastMoves = MessagePackSerializer.Deserialize<int>(message.Data);
 
-            if (lastMoves == null || lastMoves.Length != 2)
+            if (lastMoves == null)
             {
-                await SendErrorAsync(connection, "INVALID_FORMAT", "Format attendu: 2 listes de coups");
+                await SendErrorAsync(connection, "INVALID_FORMAT", "Doit contenir les coups des 2 joueurs");
                 return;
             }
 
-            foreach (var playerMoves in lastMoves)
-            {
-                if (playerMoves.Length != 3)
-                {
-                    await SendErrorAsync(connection, "INVALID_FORMAT", "Chaque joueur doit avoir 3 coups");
-                    return;
-                }
+            Console.WriteLine($"[Coordinator] État du jeu reçu de {connection.PlayerName}: {lastMoves}");
 
-                foreach (var move in playerMoves)
-                {
-                    if (move < 0 || move > 8)
-                    {
-                        await SendErrorAsync(connection, "INVALID_VALUE", "Coups entre 0 et 8");
-                        return;
-                    }
-                }
-            }
 
-            Console.WriteLine($"[Coordinator] Coups reçus de {connection.PlayerName}");
-            Console.WriteLine($"  - Joueur 1: [{string.Join(", ", lastMoves[0])}]");
-            Console.WriteLine($"  - Joueur 2: [{string.Join(", ", lastMoves[1])}]");
-
-            // Diffuser à TOUS dans la room (joueurs + spectateurs)
-            await BroadcastToRoomAsync(roomId, new GameMessage
+            await BroadcastToRoomExeceptActualAsync(roomId, new GameMessage
             {
                 Type = MessageType.GameState,
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                Data = message.Data
+                Data = message.Data,
+                PlayerId = connection.PlayerId
             });
         }
         catch (Exception ex)
@@ -379,10 +360,8 @@ public class GameCoordinator
         }
     }
 
-    /// <summary>
-    /// Diffuse un message à tous les clients d'une room
-    /// </summary>
-    private async Task BroadcastToRoomAsync(string roomId, GameMessage message)
+
+    private async Task BroadcastToRoomExeceptActualAsync(string roomId, GameMessage message)
     {
         GameRoom? room;
         lock (_roomsLock)
@@ -405,14 +384,13 @@ public class GameCoordinator
                 _allConnections.TryGetValue(playerId, out conn);
             }
 
-            if (conn != null && conn.IsConnected)
+            if (conn != null && conn.IsConnected && conn.PlayerId != message.PlayerId)
             {
                 tasks.Add(conn.SendMessageAsync(message));
             }
         }
 
         await Task.WhenAll(tasks);
-        Console.WriteLine($"[Coordinator] Diffusé à {allIds.Count} clients dans la room");
     }
 
     /// <summary>

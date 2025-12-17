@@ -5,6 +5,8 @@ namespace Gauniv.TerminalClient;
 
 #region Messages & DTOs
 
+
+
 public enum MessageType
 {
     PlayerConnect = 1,
@@ -110,6 +112,7 @@ class Program
     private static ClientState _state = ClientState.Connecting;
     private static List<GameSummary> _availableGames = new();
     private static TaskCompletionSource<bool> _listGamesReceived = new();
+    private static Random _random = new();
 
     static async Task Main(string[] args)
     {
@@ -207,9 +210,18 @@ class Program
 
                 DisplayGames();
 
-                _state = ClientState.Menu;   // 👈 IMPORTANT
+                _state = ClientState.Menu;
                 break;
 
+            case MessageType.GameState:
+                int gameState = MessagePackSerializer
+                    .Deserialize<int>(msg.Data!);
+                
+                PrintInfo("État du jeu reçu");
+                PrintInfo($"Le serveur a envoyé le mouvement: {gameState}");
+                await Task.Delay(5000);
+                await SendGameMovesAsync();
+                break;
 
             case MessageType.GameCreated:
                 _currentGameId =
@@ -247,6 +259,7 @@ class Program
                 case ClientState.Menu:
                     await ShowMenuOnceAsync();
                     break;
+                
                 case ClientState.WaitingServer:
                 case ClientState.WaitingInRoom:
                 case ClientState.InGame:
@@ -313,18 +326,18 @@ class Program
     #endregion
 
     #region Game Logic
-
     private static async Task SendGameMovesAsync()
     {
-        await Task.Delay(1000);
-        var rnd = new Random();
-        var moves = new[] { rnd.Next(0, 9), rnd.Next(0, 9), rnd.Next(0, 9) };
 
+        
         await SendAsync(new GameMessage
         {
             Type = MessageType.GameState,
-            Data = MessagePackSerializer.Serialize(new[] { moves, new int[3] })
-        });
+            Data = MessagePackSerializer.Serialize(
+                _random.Next(0, 8)
+            )
+        }
+        );
     }
 
     private static void DisplayGames()
