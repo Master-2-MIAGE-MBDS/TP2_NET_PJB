@@ -41,15 +41,22 @@ using X.PagedList.Extensions;
 
 namespace Gauniv.WebServer.Controllers
 {
-    public class HomeController(ILogger<HomeController> logger, ApplicationDbContext applicationDbContext, UserManager<User> userManager) : Controller
+    public class HomeController : Controller
     {
-        private readonly ILogger<HomeController> _logger = logger;
-        private readonly ApplicationDbContext applicationDbContext = applicationDbContext;
-        private readonly UserManager<User> userManager = userManager;
+        private readonly ILogger<HomeController> _logger;
+        private readonly ApplicationDbContext _applicationDbContext;
+        private readonly UserManager<User> _userManager;
+
+        public HomeController(ILogger<HomeController> logger, ApplicationDbContext applicationDbContext, UserManager<User> userManager)
+        {
+            _logger = logger;
+            _applicationDbContext = applicationDbContext;
+            _userManager = userManager;
+        }
 
         public IActionResult Index()
         {
-            return View(new List<Game> { new() { Id = 0 } });
+            return View();
         }
 
 
