@@ -39,13 +39,12 @@ public enum MessageType
     
     // Messages spécifiques Morpion serveur
     MoveMade = 110,
-    InvalidMove = 111,
-    GameWon = 112,
-    GameDraw = 113,
-    RematchOffered = 114,
-    MoveAccepted = 115,
-    MoveRejected = 116,
-    GameStateSync = 117,
+    GameWon = 111,
+    GameLoose = 112,
+    RematchOffered = 113,
+    MoveAccepted = 114,
+    MoveRejected = 115,
+    GameStateSync = 116,
 }
 
 
@@ -63,6 +62,46 @@ public class MakeMoveData
 {
     [Key(0)]
     public int Position { get; set; } // Position 0-8 sur la grille
+}
+
+[MessagePackObject]
+public class MoveAcceptedData
+{
+    [Key(0)]
+    public string PlayerId { get; set; } = string.Empty;
+    
+    [Key(1)]
+    public int Position { get; set; }
+    
+}
+
+/// <summary>
+/// Réponse de rejet de coup
+/// </summary>
+[MessagePackObject]
+public class MoveRejectedData
+{
+    [Key(0)]
+    public string Reason { get; set; } = string.Empty;
+    
+    [Key(1)]
+    public int Position { get; set; }
+}
+
+/// <summary>
+/// Message de victoire
+/// </summary>
+[MessagePackObject]
+public class GameWonData
+{
+    [Key(0)]
+    public string WinnerId { get; set; } = string.Empty;
+    
+    [Key(1)]
+    public string WinnerName { get; set; } = string.Empty;
+    
+    [Key(2)]
+    public int[] WinningPositions { get; set; } = Array.Empty<int>();
 }
 
 
@@ -248,10 +287,9 @@ class Program
                 break;
 
             case MessageType.MoveMade:
-                
-                MakeMoveData moveData = MessagePackSerializer
-                    .Deserialize<MakeMoveData>(msg.Data!);
                 PrintInfo("Mouvement effectué");
+                MoveAcceptedData moveData = MessagePackSerializer
+                    .Deserialize<MoveAcceptedData>(msg.Data!);
                 PrintInfo($"Le serveur a enregistré le mouvement à la position: {moveData.Position}");
 
                 await Task.Delay(5000);
@@ -259,12 +297,18 @@ class Program
                 break;
             
             case MessageType.MoveAccepted:
-                int acceptedState = MessagePackSerializer
-                    .Deserialize<int>(msg.Data!);
-                
-                PrintInfo("État du jeu reçu");
-                PrintInfo($"Le serveur a envoyé le mouvement: {acceptedState}");
-                await Task.Delay(5000);
+                PrintSuccess("Mouvement accepté par le serveur");
+                MoveAcceptedData acceptedData = MessagePackSerializer
+                    .Deserialize<MoveAcceptedData>(msg.Data!);
+                PrintInfo($"Le serveur a enregistré le mouvement à la position: {acceptedData.Position}");
+                break;
+            
+            case MessageType.MoveRejected:
+                PrintError("Mouvement rejeté par le serveur");
+                MoveRejectedData rejectedData = MessagePackSerializer
+                    .Deserialize<MoveRejectedData>(msg.Data!);
+                PrintError($"Raison: {rejectedData.Reason}, Position: {rejectedData.Position}");
+
                 await SendGameMovesAsync();
                 break;
 
@@ -287,6 +331,31 @@ class Program
                 var err = MessagePackSerializer.Deserialize<ErrorData>(msg.Data!);
                 PrintError(err.Message);
                 _state = ClientState.Menu;
+                break;
+
+            case MessageType.GameEnded:
+                GameWonData winData = MessagePackSerializer
+                    .Deserialize<GameWonData>(msg.Data!);
+                PrintInfo($"La partie est terminée. Le gagnant est: {winData.WinnerName}");
+                _state = ClientState.Menu;
+                break;
+
+            case MessageType.GameWon:
+                GameWonData gameWonData = MessagePackSerializer
+                    .Deserialize<GameWonData>(msg.Data!);
+                PrintSuccess($"Vous avez gagné la partie! Félicitations {gameWonData.WinnerName}!");
+                _state = ClientState.Menu;
+                break;
+            
+            case MessageType.GameLoose:
+                GameWonData gameLooseData = MessagePackSerializer
+                    .Deserialize<GameWonData>(msg.Data!);
+                PrintError($"Vous avez perdu la partie. Le gagnant est {gameLooseData.WinnerName}.");
+                _state = ClientState.Menu;
+                break;
+
+            case MessageType.GameStateSync:
+                PrintInfo("État du jeu synchronisé.");
                 break;
 
             default:

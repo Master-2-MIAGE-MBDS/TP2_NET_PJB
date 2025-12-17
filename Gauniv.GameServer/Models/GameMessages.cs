@@ -36,14 +36,15 @@ public enum MessageType
     GameJoined = 109,
     
     // Messages spécifiques Morpion serveur
+    // Messages spécifiques Morpion serveur
+    // Messages spécifiques Morpion serveur
     MoveMade = 110,
-    InvalidMove = 111,
-    GameWon = 112,
-    GameDraw = 113,
-    RematchOffered = 114,
-    MoveAccepted = 115,
-    MoveRejected = 116,
-    GameStateSync = 117,
+    GameWon = 111,
+    GameLoose = 112,
+    RematchOffered = 113,
+    MoveAccepted = 114,
+    MoveRejected = 115,
+    GameStateSync = 116,
 }
 
 /// <summary>
@@ -239,8 +240,6 @@ public class MoveAcceptedData
     [Key(1)]
     public int Position { get; set; }
     
-    [Key(2)]
-    public int MoveIndex { get; set; } // Index du coup (0, 1 ou 2)
 }
 
 /// <summary>
@@ -290,3 +289,8 @@ public class GameWonData
     [Key(2)]
     public int[] WinningPositions { get; set; } = Array.Empty<int>();
 }
+
+
+
+
+

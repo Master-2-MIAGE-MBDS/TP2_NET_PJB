@@ -485,6 +485,65 @@ public class GameCoordinator
     }
 
     /// <summary>
+    /// Envoie un message de Victoire
+    /// </summary>
+    
+    private async Task sendGameWonAsync(PlayerConnection connection, GameWonData winData)
+    {
+        var message = new GameMessage
+        {
+            Type = MessageType.GameWon,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Data = MessagePackSerializer.Serialize(winData)
+        };
+
+        await connection.SendMessageAsync(message);
+    }
+
+    private async Task sendGameLooseAsyncToPlayer(String roomId, GameWonData looseData)
+    {
+        GameRoom? room;
+        lock (_roomsLock)
+        {
+            _rooms.TryGetValue(roomId, out room);
+        }
+
+        if (room == null) return;
+
+
+        var looserIds = room.PlayerIds.Where(id => id != looseData.WinnerId).ToList();
+
+        var tasks = new List<Task>();
+        foreach (var playerId in looserIds)
+        {
+            PlayerConnection? conn;
+            lock (_connectionsLock)
+            {
+                _allConnections.TryGetValue(playerId, out conn);
+            }
+
+            if (conn != null && conn.IsConnected)
+            {
+                tasks.Add(sendGameLooseAsync(conn, looseData));
+            }
+        }
+        await Task.WhenAll(tasks);
+    }
+
+    private async Task sendGameLooseAsync(PlayerConnection connection, GameWonData looseData)
+    {
+        var message = new GameMessage
+        {
+            Type = MessageType.GameLoose,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Data = MessagePackSerializer.Serialize(looseData)
+        };
+
+        await connection.SendMessageAsync(message);
+    }
+
+
+    /// <summary>
     /// Gère la déconnexion d'un client
     /// </summary>
     private async Task HandlePlayerDisconnectAsync(PlayerConnection connection, GameMessage message)
@@ -689,25 +748,9 @@ public class GameCoordinator
         {
             PlayerId = connection.PlayerId,
             Position = position,
-            MoveIndex = 2
         };
         
-        await connection.SendMessageAsync(new GameMessage
-        {
-            Type = MessageType.MoveAccepted,
-            PlayerId = connection.PlayerId,
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            Data = MessagePackSerializer.Serialize(acceptedData)
-        });
 
-        // Broadcaster le coup à tous les autres joueurs et spectateurs
-        await BroadcastToRoomExceptAsync(roomId, connection.PlayerId, new GameMessage
-        {
-            Type = MessageType.MoveMade,
-            PlayerId = connection.PlayerId,
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            Data = MessagePackSerializer.Serialize(acceptedData)
-        });
 
         showTheCurrentGameState(room);
 
@@ -724,15 +767,40 @@ public class GameCoordinator
                 WinnerName = GetPlayerName(winner.PlayerId),
                 WinningPositions = winner.WinningPositions
             };
+
             
             Console.WriteLine($"[Coordinator] Victoire de {winData.WinnerName}!");
             
+            await sendGameWonAsync(connection, winData);
+            // Envoyer la défaite aux autres joueurs
+            await sendGameLooseAsyncToPlayer(roomId, winData);
+
+            // Broadcast à toute la room la fin de la partie
             await BroadcastToRoomAsync(roomId, new GameMessage
             {
-                Type = MessageType.GameWon,
+                Type = MessageType.GameEnded,
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 Data = MessagePackSerializer.Serialize(winData)
             });
+        }
+        else
+        {
+            await connection.SendMessageAsync(new GameMessage
+        {
+            Type = MessageType.MoveAccepted,
+            PlayerId = connection.PlayerId,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Data = MessagePackSerializer.Serialize(acceptedData)
+        });
+
+        // Broadcaster le coup à tous les autres joueurs et spectateurs
+        await BroadcastToRoomExceptAsync(roomId, connection.PlayerId, new GameMessage
+        {
+            Type = MessageType.MoveMade,
+            PlayerId = connection.PlayerId,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Data = MessagePackSerializer.Serialize(acceptedData)
+        });
         }
         
     }
