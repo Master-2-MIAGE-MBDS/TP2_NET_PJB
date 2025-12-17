@@ -5,26 +5,43 @@ using Gauniv.GameServer.Network;
 namespace Gauniv.GameServer.Services;
 
 /// <summary>
-/// Coordonnateur de jeu de morpion qui gère l'état du jeu et les joueurs
+/// Représente une room de jeu
+/// </summary>
+public class GameRoom
+{
+    public string GameId { get; set; }
+    public string Name { get; set; }
+    public List<string> PlayerIds { get; set; } = new();
+    public List<string> SpectatorIds { get; set; } = new();
+
+    public GameRoom(string gameId, string name)
+    {
+        GameId = gameId;
+        Name = name;
+    }
+
+    public int TotalPlayers => PlayerIds.Count + SpectatorIds.Count;
+}
+
+/// <summary>
+/// Coordonnateur qui gère les rooms et diffuse les états du jeu
 /// </summary>
 public class GameCoordinator
 {
     private readonly TcpGameServer _server;
-    private readonly Dictionary<string, PlayerConnection> _players;
-    private readonly Dictionary<string, TicTacToeGame> _games;
-    private readonly Dictionary<string, string> _playerGameMap;
-    private readonly Queue<PlayerConnection> _lobbyQueue;
-    private readonly object _playersLock = new();
-    private readonly object _gamesLock = new();
-    private readonly object _lobbyLock = new();
+    private readonly Dictionary<string, PlayerConnection> _allConnections;
+    private readonly Dictionary<string, GameRoom> _rooms;
+    private readonly Dictionary<string, string> _playerRoomMap; // playerId -> roomId
+    private readonly object _connectionsLock = new();
+    private readonly object _roomsLock = new();
+    private readonly object _mapLock = new();
     
     public GameCoordinator(TcpGameServer server)
     {
         _server = server;
-        _players = new Dictionary<string, PlayerConnection>();
-        _games = new Dictionary<string, TicTacToeGame>();
-        _playerGameMap = new Dictionary<string, string>();
-        _lobbyQueue = new Queue<PlayerConnection>();
+        _allConnections = new Dictionary<string, PlayerConnection>();
+        _rooms = new Dictionary<string, GameRoom>();
+        _playerRoomMap = new Dictionary<string, string>();
         
         // S'abonner aux événements du serveur
         _server.ClientConnected += OnClientConnected;
@@ -68,10 +85,6 @@ public class GameCoordinator
             case MessageType.PlayerDisconnect:
                 await HandlePlayerDisconnectAsync(connection, message);
                 break;
-                
-            case MessageType.PlayerReady:
-                await HandlePlayerReadyAsync(connection, message);
-                break;
 
             case MessageType.CreateGame:
                 await HandleCreateGameAsync(connection, message);
@@ -85,12 +98,8 @@ public class GameCoordinator
                 await HandleJoinGameAsync(connection, message);
                 break;
                 
-            case MessageType.MakeMove:
-                await HandleMakeMoveAsync(connection, message);
-                break;
-                
-            case MessageType.RequestRematch:
-                await HandleRequestRematchAsync(connection, message);
+            case MessageType.GameState:
+                await HandleGameStateAsync(connection, message);
                 break;
                 
             default:
@@ -99,6 +108,9 @@ public class GameCoordinator
         }
     }
     
+    /// <summary>
+    /// Gère la connexion d'un client
+    /// </summary>
     private async Task HandlePlayerConnectAsync(PlayerConnection connection, GameMessage message)
     {
         if (message.Data == null)
@@ -109,431 +121,318 @@ public class GameCoordinator
         
         var connectData = MessagePackSerializer.Deserialize<PlayerConnectData>(message.Data);
         
-        // Générer un ID unique pour le joueur
-        var playerId = Guid.NewGuid().ToString();
-        connection.PlayerId = playerId;
+        // Générer un ID unique
+        var clientId = Guid.NewGuid().ToString();
+        connection.PlayerId = clientId;
         connection.PlayerName = connectData.PlayerName;
         
-        lock (_playersLock)
+        lock (_connectionsLock)
         {
-            _players[playerId] = connection;
+            _allConnections[clientId] = connection;
         }
         
-        Console.WriteLine($"[Coordinator] Joueur connecté: {connectData.PlayerName} (ID: {playerId})");
+        Console.WriteLine($"[Coordinator] Joueur connecté: {connectData.PlayerName} (ID: {clientId})");
         
         // Envoyer un message de bienvenue
-        await SendWelcomeMessageAsync(connection, playerId);
+        await SendWelcomeMessageAsync(connection, clientId);
     }
 
+    /// <summary>
+    /// Crée une nouvelle room
+    /// </summary>
     private async Task HandleCreateGameAsync(PlayerConnection connection, GameMessage message)
     {
         if (connection.PlayerId == null || connection.PlayerName == null)
         {
-            await SendErrorAsync(connection, "NOT_CONNECTED", "Identité du joueur inconnue");
+            await SendErrorAsync(connection, "NOT_CONNECTED", "Identité inconnue");
             return;
         }
 
         if (message.Data == null)
         {
-            await SendErrorAsync(connection, "INVALID_DATA", "Données de création manquantes");
+            await SendErrorAsync(connection, "INVALID_DATA", "Données manquantes");
             return;
         }
 
         var createRequest = MessagePackSerializer.Deserialize<CreateGameRequest>(message.Data);
-        var local_name = string.IsNullOrWhiteSpace(createRequest.GameName)
-            ? $"Salle-{Guid.NewGuid().ToString()[..8]}"
+        var roomName = string.IsNullOrWhiteSpace(createRequest.GameName)
+            ? $"Room-{Guid.NewGuid().ToString()[..8]}"
             : createRequest.GameName.Trim();
 
         var gameId = Guid.NewGuid().ToString();
-        var game = new TicTacToeGame(gameId, local_name);
-        game.AssignPlayer(connection.PlayerId, connection.PlayerName);
+        var room = new GameRoom(gameId, roomName);
+        room.PlayerIds.Add(connection.PlayerId);
 
-        lock (_gamesLock)
+        lock (_roomsLock)
         {
-            _games[gameId] = game;
-            _playerGameMap[connection.PlayerId] = gameId;
+            _rooms[gameId] = room;
         }
+
+        lock (_mapLock)
+        {
+            _playerRoomMap[connection.PlayerId] = gameId;
+        }
+
+        Console.WriteLine($"[Coordinator] Room créée: '{roomName}' (ID: {gameId[..8]}...)");
 
         var response = new GameMessage
         {
             Type = MessageType.GameCreated,
             PlayerId = connection.PlayerId,
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            Data = MessagePackSerializer.Serialize(new GameCreatedData { Game = game.ToSummary() })
+            Data = MessagePackSerializer.Serialize(new GameCreatedData
+            {
+                Game = new GameSummary
+                {
+                    GameId = gameId,
+                    Name = roomName,
+                    PlayerCount = room.PlayerIds.Count,
+                    MaxPlayers = 2
+                }
+            })
         };
 
         await connection.SendMessageAsync(response);
     }
 
+    /// <summary>
+    /// Liste les rooms disponibles
+    /// </summary>
     private async Task HandleListGamesAsync(PlayerConnection connection)
     {
-        List<GameSummary> local_games;
-        lock (_gamesLock)
+        List<GameSummary> games;
+        int totalRooms;
+
+        lock (_roomsLock)
         {
-            local_games = _games.Values
-                .Where(g => g.Board.Status == GameStatus.WaitingForPlayers)
-                .Select(g => g.ToSummary())
+            totalRooms = _rooms.Count;
+            games = _rooms.Values
+                .Where(r => r.PlayerIds.Count < 2)
+                .Select(r => new GameSummary
+                {
+                    GameId = r.GameId,
+                    Name = r.Name,
+                    PlayerCount = r.PlayerIds.Count,
+                    MaxPlayers = 2
+                })
                 .ToList();
         }
+
+        Console.WriteLine($"[Coordinator] ListGames demandé: {games.Count} rooms libres sur {totalRooms} total");
 
         var response = new GameMessage
         {
             Type = MessageType.GameList,
             PlayerId = connection.PlayerId,
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            Data = MessagePackSerializer.Serialize(new GameListResponse { Games = local_games })
+            Data = MessagePackSerializer.Serialize(new GameListResponse { Games = games })
         };
 
         await connection.SendMessageAsync(response);
     }
 
+    /// <summary>
+    /// Rejoint une room
+    /// </summary>
     private async Task HandleJoinGameAsync(PlayerConnection connection, GameMessage message)
     {
         if (connection.PlayerId == null || connection.PlayerName == null)
         {
-            await SendErrorAsync(connection, "NOT_CONNECTED", "Identité du joueur inconnue");
+            await SendErrorAsync(connection, "NOT_CONNECTED", "Identité inconnue");
             return;
         }
 
         if (message.Data == null)
         {
-            await SendErrorAsync(connection, "INVALID_DATA", "Données de connexion manquantes");
+            await SendErrorAsync(connection, "INVALID_DATA", "Données manquantes");
             return;
         }
 
         var joinRequest = MessagePackSerializer.Deserialize<JoinGameRequest>(message.Data);
-        TicTacToeGame? local_game;
-        lock (_gamesLock)
+        
+        GameRoom? room;
+        lock (_roomsLock)
         {
-            _games.TryGetValue(joinRequest.GameId, out local_game);
+            _rooms.TryGetValue(joinRequest.GameId, out room);
         }
 
-        if (local_game == null)
+        if (room == null)
         {
-            await SendErrorAsync(connection, "GAME_NOT_FOUND", "Partie introuvable");
+            await SendErrorAsync(connection, "GAME_NOT_FOUND", "Room introuvable");
             return;
         }
 
-        if (!local_game.AssignPlayer(connection.PlayerId, connection.PlayerName))
+        if (room.PlayerIds.Count >= 2)
         {
-            await SendErrorAsync(connection, "GAME_FULL", "La partie est complète");
-            return;
+            // C'est un spectateur
+            room.SpectatorIds.Add(connection.PlayerId);
+            Console.WriteLine($"[Coordinator] Spectateur rejoint: '{room.Name}'");
+        }
+        else
+        {
+            // C'est un joueur
+            room.PlayerIds.Add(connection.PlayerId);
+            Console.WriteLine($"[Coordinator] Joueur rejoint: '{room.Name}' ({room.PlayerIds.Count}/2)");
         }
 
-        lock (_gamesLock)
+        lock (_mapLock)
         {
-            _playerGameMap[connection.PlayerId] = local_game.GameId;
+            _playerRoomMap[connection.PlayerId] = room.GameId;
         }
 
-        var joinResponse = new GameMessage
+        var response = new GameMessage
         {
             Type = MessageType.GameJoined,
             PlayerId = connection.PlayerId,
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             Data = MessagePackSerializer.Serialize(new GameJoinedData
             {
-                Game = local_game.ToSummary(),
-                Role = local_game.PlayerOId == connection.PlayerId ? "O" : "X"
+                Game = new GameSummary
+                {
+                    GameId = room.GameId,
+                    Name = room.Name,
+                    PlayerCount = room.PlayerIds.Count,
+                    MaxPlayers = 2
+                },
+                Role = room.PlayerIds.Count >= 2 ? "SPECTATEUR" : "JOUEUR"
             })
         };
 
-        await connection.SendMessageAsync(joinResponse);
+        await connection.SendMessageAsync(response);
+    }
 
-        // Prévenir l'autre joueur si présent
-        var otherPlayerId = local_game.PlayerXId == connection.PlayerId ? local_game.PlayerOId : local_game.PlayerXId;
-        if (!string.IsNullOrEmpty(otherPlayerId))
+    /// <summary>
+    /// Reçoit l'état du jeu et le diffuse uniquement à la room
+    /// </summary>
+    private async Task HandleGameStateAsync(PlayerConnection connection, GameMessage message)
+    {
+        if (message.Data == null)
         {
-            PlayerConnection? other;
-            lock (_playersLock)
+            await SendErrorAsync(connection, "INVALID_DATA", "État du jeu manquant");
+            return;
+        }
+
+        if (connection.PlayerId == null)
+        {
+            await SendErrorAsync(connection, "NOT_CONNECTED", "Identité inconnue");
+            return;
+        }
+
+        // Trouver la room du joueur
+        string? roomId;
+        lock (_mapLock)
+        {
+            _playerRoomMap.TryGetValue(connection.PlayerId, out roomId);
+        }
+
+        if (roomId == null)
+        {
+            await SendErrorAsync(connection, "NO_ROOM", "Pas en room");
+            return;
+        }
+
+        try
+        {
+            // Deserialiser la liste 3x3
+            var lastMoves = MessagePackSerializer.Deserialize<int[][]>(message.Data);
+
+            if (lastMoves == null || lastMoves.Length != 2)
             {
-                _players.TryGetValue(otherPlayerId, out other);
+                await SendErrorAsync(connection, "INVALID_FORMAT", "Format attendu: 2 listes de coups");
+                return;
             }
 
-            if (other != null && other.IsConnected)
+            foreach (var playerMoves in lastMoves)
             {
-                // Notifier l'autre joueur du join (mais pas de GameState)
-                var playerJoinedMsg = new GameMessage
+                if (playerMoves.Length != 3)
                 {
-                    Type = MessageType.PlayerJoined,
-                    PlayerId = connection.PlayerId,
-                    Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                    Data = MessagePackSerializer.Serialize(new PlayerInfo
+                    await SendErrorAsync(connection, "INVALID_FORMAT", "Chaque joueur doit avoir 3 coups");
+                    return;
+                }
+
+                foreach (var move in playerMoves)
+                {
+                    if (move < 0 || move > 8)
                     {
-                        PlayerId = connection.PlayerId,
-                        PlayerName = connection.PlayerName,
-                        IsConnected = true,
-                        IsReady = false
-                    })
-                };
-                await other.SendMessageAsync(playerJoinedMsg);
-            }
-        }
-
-        // Démarrer la partie SI tous les joueurs sont présents
-        if (local_game.CanStart())
-        {
-            local_game.Board.Status = GameStatus.InProgress;
-
-            var startMessage = new GameMessage
-            {
-                Type = MessageType.GameStarted,
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-            };
-
-            await SendToGameAsync(local_game, startMessage);
-            await BroadcastTicTacToeStateAsync(local_game);
-        }
-    }
-    
-    private void EnqueuePlayerToLobby(PlayerConnection connection)
-    {
-        if (connection.PlayerId == null)
-        {
-            return;
-        }
-
-        lock (_lobbyLock)
-        {
-            if (_playerGameMap.ContainsKey(connection.PlayerId))
-            {
-                return; // déjà dans une partie
+                        await SendErrorAsync(connection, "INVALID_VALUE", "Coups entre 0 et 8");
+                        return;
+                    }
+                }
             }
 
-            if (_lobbyQueue.Any(p => p.PlayerId == connection.PlayerId))
+            Console.WriteLine($"[Coordinator] Coups reçus de {connection.PlayerName}");
+            Console.WriteLine($"  - Joueur 1: [{string.Join(", ", lastMoves[0])}]");
+            Console.WriteLine($"  - Joueur 2: [{string.Join(", ", lastMoves[1])}]");
+
+            // Diffuser à TOUS dans la room (joueurs + spectateurs)
+            await BroadcastToRoomAsync(roomId, new GameMessage
             {
-                return; // déjà en attente
-            }
-
-            _lobbyQueue.Enqueue(connection);
-        }
-    }
-
-    private void RemoveFromLobby(string playerId)
-    {
-        lock (_lobbyLock)
-        {
-            if (_lobbyQueue.Count == 0) return;
-
-            var remaining = _lobbyQueue.Where(p => p.PlayerId != playerId).ToList();
-            _lobbyQueue.Clear();
-            foreach (var player in remaining)
-            {
-                _lobbyQueue.Enqueue(player);
-            }
-        }
-    }
-
-    private async Task TryStartGamesAsync()
-    {
-        var pairs = new List<(PlayerConnection First, PlayerConnection Second)>();
-
-        lock (_lobbyLock)
-        {
-            while (_lobbyQueue.Count >= 2)
-            {
-                var p1 = _lobbyQueue.Dequeue();
-                var p2 = _lobbyQueue.Dequeue();
-                pairs.Add((p1, p2));
-            }
-        }
-
-        foreach (var (first, second) in pairs)
-        {
-            await StartNewGameAsync(first, second);
-        }
-    }
-
-    private async Task StartNewGameAsync(PlayerConnection player1, PlayerConnection player2)
-    {
-        var gameId = Guid.NewGuid().ToString();
-        var game = new TicTacToeGame(gameId, $"Match-{gameId[..8]}");
-        
-        game.AssignPlayer(player1.PlayerId!, player1.PlayerName!);
-        game.AssignPlayer(player2.PlayerId!, player2.PlayerName!);
-        game.Board.Status = GameStatus.InProgress;
-        
-        lock (_gamesLock)
-        {
-            _games[gameId] = game;
-            _playerGameMap[player1.PlayerId!] = gameId;
-            _playerGameMap[player2.PlayerId!] = gameId;
-        }
-        
-        Console.WriteLine($"[Coordinator] Nouvelle partie de morpion: {player1.PlayerName} (X) vs {player2.PlayerName} (O)");
-        Console.WriteLine($"[Coordinator] État du jeu: {game.Board.Status}, Joueur courant: {game.Board.CurrentPlayer}");
-        
-        var startMessage = new GameMessage
-        {
-            Type = MessageType.GameStarted,
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-        };
-        
-        Console.WriteLine($"[Coordinator] Envoi de GameStarted...");
-        await SendToGameAsync(game, startMessage);
-        
-        Console.WriteLine($"[Coordinator] Envoi du GameState...");
-        await BroadcastTicTacToeStateAsync(game);
-    }
-    
-    private async Task HandlePlayerDisconnectAsync(PlayerConnection connection, GameMessage message)
-    {
-        await HandlePlayerDisconnectionAsync(connection);
-    }
-    
-    private async Task HandlePlayerReadyAsync(PlayerConnection connection, GameMessage message)
-    {
-        if (connection.PlayerId == null)
-        {
-            return;
-        }
-
-        connection.IsReady = true;
-        Console.WriteLine($"[Coordinator] Joueur prêt: {connection.PlayerName}");
-        
-        // La partie démarre automatiquement quand 2 joueurs se connectent
-        // Cette méthode est conservée pour compatibilité mais n'est plus critique
-    }
-    
-    private async Task HandleMakeMoveAsync(PlayerConnection connection, GameMessage message)
-    {
-        if (message.Data == null || connection.PlayerId == null)
-        {
-            await SendErrorAsync(connection, "NO_GAME", "Aucune partie en cours");
-            return;
-        }
-        
-        var game = GetGameForPlayer(connection.PlayerId);
-        if (game == null)
-        {
-            await SendErrorAsync(connection, "NO_GAME", "Aucune partie en cours");
-            return;
-        }
-
-        var move = MessagePackSerializer.Deserialize<TicTacToeMove>(message.Data);
-        
-        Console.WriteLine($"[Coordinator] {connection.PlayerName} joue en position {move.Position}");
-        
-        var result = game.MakeMove(connection.PlayerId, move.Position);
-        
-        if (!result.Success)
-        {
-            await SendErrorAsync(connection, "INVALID_MOVE", result.ErrorMessage ?? "Coup invalide");
-            
-            var invalidMessage = new GameMessage
-            {
-                Type = MessageType.InvalidMove,
-                PlayerId = connection.PlayerId,
+                Type = MessageType.GameState,
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                Data = MessagePackSerializer.Serialize(result)
-            };
-            await connection.SendMessageAsync(invalidMessage);
-            return;
+                Data = message.Data
+            });
         }
-        
-        // Diffuser le coup à tous les joueurs
-        var moveMessage = new GameMessage
+        catch (Exception ex)
         {
-            Type = MessageType.MoveMade,
-            PlayerId = connection.PlayerId,
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            Data = MessagePackSerializer.Serialize(result)
-        };
-        await SendToGameAsync(game, moveMessage);
-        
-        if (game.IsGameOver())
+            Console.WriteLine($"[Coordinator] Erreur: {ex.Message}");
+            await SendErrorAsync(connection, "DESERIALIZATION_ERROR", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Diffuse un message à tous les clients d'une room
+    /// </summary>
+    private async Task BroadcastToRoomAsync(string roomId, GameMessage message)
+    {
+        GameRoom? room;
+        lock (_roomsLock)
         {
-            await HandleGameOverAsync(game);
+            _rooms.TryGetValue(roomId, out room);
         }
 
-        await BroadcastTicTacToeStateAsync(game);
-    }
-    
-    private async Task HandleGameOverAsync(TicTacToeGame game)
-    {
-        var state = game.GetGameState();
-        MessageType messageType;
-        string statusMessage;
-        
-        if (state.Status == GameStatus.XWins)
+        if (room == null) return;
+
+        var allIds = new List<string>();
+        allIds.AddRange(room.PlayerIds);
+        allIds.AddRange(room.SpectatorIds);
+
+        var tasks = new List<Task>();
+        foreach (var playerId in allIds)
         {
-            messageType = MessageType.GameWon;
-            statusMessage = $"{state.PlayerXName} (X) a gagné!";
-        }
-        else if (state.Status == GameStatus.OWins)
-        {
-            messageType = MessageType.GameWon;
-            statusMessage = $"{state.PlayerOName} (O) a gagné!";
-        }
-        else
-        {
-            messageType = MessageType.GameDraw;
-            statusMessage = "Match nul!";
-        }
-        
-        Console.WriteLine($"[Coordinator] Fin de partie: {statusMessage}");
-        
-        var endMessage = new GameMessage
-        {
-            Type = messageType,
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            Data = MessagePackSerializer.Serialize(state)
-        };
-        
-        await SendToGameAsync(game, endMessage);
-    }
-    
-    private async Task HandleRequestRematchAsync(PlayerConnection connection, GameMessage message)
-    {
-        if (connection.PlayerId == null)
-        {
-            await SendErrorAsync(connection, "NO_GAME", "Aucune partie à rejouer");
-            return;
+            PlayerConnection? conn;
+            lock (_connectionsLock)
+            {
+                _allConnections.TryGetValue(playerId, out conn);
+            }
+
+            if (conn != null && conn.IsConnected)
+            {
+                tasks.Add(conn.SendMessageAsync(message));
+            }
         }
 
-        var game = GetGameForPlayer(connection.PlayerId);
-        if (game == null)
-        {
-            await SendErrorAsync(connection, "NO_GAME", "Aucune partie à rejouer");
-            return;
-        }
-        
-        Console.WriteLine($"[Coordinator] {connection.PlayerName} demande une revanche");
-        
-        // Réinitialiser la partie
-        game.StartNewRound();
-        
-        var rematchMessage = new GameMessage
-        {
-            Type = MessageType.RematchOffered,
-            PlayerId = connection.PlayerId,
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-        };
-        
-        await SendToGameAsync(game, rematchMessage);
-        
-        // Redémarrer la partie
-        var startMessage = new GameMessage
-        {
-            Type = MessageType.GameStarted,
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-        };
-        
-        await SendToGameAsync(game, startMessage);
-        await BroadcastTicTacToeStateAsync(game);
+        await Task.WhenAll(tasks);
+        Console.WriteLine($"[Coordinator] Diffusé à {allIds.Count} clients dans la room");
     }
-    
-    private async Task SendWelcomeMessageAsync(PlayerConnection connection, string playerId)
+
+    /// <summary>
+    /// Envoie un message de bienvenue
+    /// </summary>
+    private async Task SendWelcomeMessageAsync(PlayerConnection connection, string clientId)
     {
         var message = new GameMessage
         {
             Type = MessageType.ServerWelcome,
-            PlayerId = playerId,
+            PlayerId = clientId,
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
         };
-        
+
         await connection.SendMessageAsync(message);
     }
-    
+
+    /// <summary>
+    /// Envoie un message d'erreur
+    /// </summary>
     private async Task SendErrorAsync(PlayerConnection connection, string errorCode, string errorMessage)
     {
         var errorData = new ErrorData
@@ -541,206 +440,123 @@ public class GameCoordinator
             ErrorCode = errorCode,
             Message = errorMessage
         };
-        
+
         var message = new GameMessage
         {
             Type = MessageType.ServerError,
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             Data = MessagePackSerializer.Serialize(errorData)
         };
-        
+
         await connection.SendMessageAsync(message);
     }
-    
-    private async Task BroadcastPlayerJoinedAsync(string playerId, string playerName)
-    {
-        // Ne broadcast que si le joueur est dans une game
-        var game = GetGameForPlayer(playerId);
-        if (game == null)
-        {
-            return; // Joueur pas encore dans une game
-        }
 
-        var playerInfo = new PlayerInfo
-        {
-            PlayerId = playerId,
-            PlayerName = playerName,
-            IsReady = false,
-            IsConnected = true
-        };
-        
-        var message = new GameMessage
-        {
-            Type = MessageType.PlayerJoined,
-            PlayerId = playerId,
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            Data = MessagePackSerializer.Serialize(playerInfo)
-        };
-        
-        // Envoyer SEULEMENT aux joueurs de cette partie
-        await SendToGameAsync(game, message);
-    }
-    
-    private async Task BroadcastPlayerLeftAsync(string playerId, string playerName)
+    /// <summary>
+    /// Gère la déconnexion d'un client
+    /// </summary>
+    private async Task HandlePlayerDisconnectAsync(PlayerConnection connection, GameMessage message)
     {
-        var playerInfo = new PlayerInfo
-        {
-            PlayerId = playerId,
-            PlayerName = playerName,
-            IsReady = false,
-            IsConnected = false
-        };
-        
-        var message = new GameMessage
-        {
-            Type = MessageType.PlayerLeft,
-            PlayerId = playerId,
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            Data = MessagePackSerializer.Serialize(playerInfo)
-        };
-        
-        await _server.BroadcastMessageAsync(message);
-    }
-    
-    private async Task BroadcastGameCancelledAsync(TicTacToeGame game, string disconnectedPlayerName)
-    {
-        var errorData = new ErrorData
-        {
-            ErrorCode = "GAME_CANCELLED",
-            Message = $"{disconnectedPlayerName} s'est déconnecté. La partie est annulée."
-        };
-        
-        var message = new GameMessage
-        {
-            Type = MessageType.GameEnded,
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            Data = MessagePackSerializer.Serialize(errorData)
-        };
-        
-        await SendToGameAsync(game, message);
-    }
-    
-    private async Task BroadcastTicTacToeStateAsync(TicTacToeGame game)
-    {
-        var state = game.GetGameState();
-        
-        var message = new GameMessage
-        {
-            Type = MessageType.GameState,
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            Data = MessagePackSerializer.Serialize(state)
-        };
-        
-        await SendToGameAsync(game, message);
+        await HandlePlayerDisconnectionAsync(connection);
     }
 
-    private TicTacToeGame? GetGameForPlayer(string playerId)
-    {
-        string? gameId = GetPlayerGameId(playerId);
-        if (gameId == null)
-        {
-            return null;
-        }
-
-        lock (_gamesLock)
-        {
-            _games.TryGetValue(gameId, out var game);
-            return game;
-        }
-    }
-
-    private string? GetPlayerGameId(string playerId)
-    {
-        lock (_gamesLock)
-        {
-            return _playerGameMap.TryGetValue(playerId, out var gameId) ? gameId : null;
-        }
-    }
-
-    private List<string> GetPlayerIds(TicTacToeGame game)
-    {
-        var ids = new List<string>();
-        if (!string.IsNullOrEmpty(game.PlayerXId)) ids.Add(game.PlayerXId);
-        if (!string.IsNullOrEmpty(game.PlayerOId) && game.PlayerOId != game.PlayerXId) ids.Add(game.PlayerOId);
-        return ids;
-    }
-
-    private async Task SendToGameAsync(TicTacToeGame game, GameMessage message)
-    {
-        var playerIds = GetPlayerIds(game);
-        if (playerIds.Count == 0)
-        {
-            return;
-        }
-
-        await _server.SendMessageToPlayersAsync(playerIds, message);
-    }
-
+    /// <summary>
+    /// Gère la déconnexion d'un client (interne)
+    /// </summary>
     private async Task HandlePlayerDisconnectionAsync(PlayerConnection connection)
     {
-        if (connection.PlayerId == null)
+        if (connection.PlayerId == null) return;
+
+        // Retirer des connections
+        lock (_connectionsLock)
         {
-            return;
+            _allConnections.Remove(connection.PlayerId);
         }
 
-        RemoveFromLobby(connection.PlayerId);
-        await RemovePlayerFromGameAsync(connection);
-
-        lock (_playersLock)
+        // Retirer de la room si présent
+        string? roomId;
+        lock (_mapLock)
         {
-            _players.Remove(connection.PlayerId);
+            _playerRoomMap.TryGetValue(connection.PlayerId, out roomId);
+            _playerRoomMap.Remove(connection.PlayerId);
         }
 
-        await BroadcastPlayerLeftAsync(connection.PlayerId, connection.PlayerName ?? "Unknown");
-        Console.WriteLine($"[Coordinator] Joueur déconnecté: {connection.PlayerName} ({connection.PlayerId})");
+        if (roomId != null)
+        {
+            lock (_roomsLock)
+            {
+                if (_rooms.TryGetValue(roomId, out var room))
+                {
+                    room.PlayerIds.Remove(connection.PlayerId);
+                    room.SpectatorIds.Remove(connection.PlayerId);
+
+                    // Supprimer la room si vide
+                    if (room.TotalPlayers == 0)
+                    {
+                        _rooms.Remove(roomId);
+                        Console.WriteLine($"[Coordinator] Room vide supprimée: {roomId[..8]}...");
+                    }
+                }
+            }
+        }
+
+        Console.WriteLine($"[Coordinator] Joueur déconnecté: {connection.PlayerName}");
     }
+}
 
-    private async Task RemovePlayerFromGameAsync(PlayerConnection connection)
-    {
-        if (connection.PlayerId == null)
-        {
-            return;
-        }
+/// <summary>
+/// Données de création de room
+/// </summary>
+[MessagePackObject]
+public class CreateGameRequest
+{
+    [Key(0)] public string GameName { get; set; } = string.Empty;
+}
 
-        var game = GetGameForPlayer(connection.PlayerId);
-        if (game == null)
-        {
-            return;
-        }
+/// <summary>
+/// Données de join de room
+/// </summary>
+[MessagePackObject]
+public class JoinGameRequest
+{
+    [Key(0)] public string GameId { get; set; } = string.Empty;
+}
 
-        var participants = GetPlayerIds(game);
-        game.RemovePlayer(connection.PlayerId);
+/// <summary>
+/// Résumé d'une room
+/// </summary>
+[MessagePackObject]
+public class GameSummary
+{
+    [Key(0)] public string GameId { get; set; } = string.Empty;
+    [Key(1)] public string Name { get; set; } = string.Empty;
+    [Key(2)] public int PlayerCount { get; set; }
+    [Key(3)] public int MaxPlayers { get; set; }
+}
 
-        await BroadcastGameCancelledAsync(game, connection.PlayerName ?? "Un joueur");
+/// <summary>
+/// Réponse de création de room
+/// </summary>
+[MessagePackObject]
+public class GameCreatedData
+{
+    [Key(0)] public GameSummary Game { get; set; } = new();
+}
 
-        lock (_gamesLock)
-        {
-            _games.Remove(game.GameId);
-            foreach (var playerId in participants)
-            {
-                _playerGameMap.Remove(playerId);
-            }
-        }
+/// <summary>
+/// Réponse de join de room
+/// </summary>
+[MessagePackObject]
+public class GameJoinedData
+{
+    [Key(0)] public GameSummary Game { get; set; } = new();
+    [Key(1)] public string Role { get; set; } = string.Empty;
+}
 
-        foreach (var playerId in participants)
-        {
-            if (playerId == connection.PlayerId)
-            {
-                continue;
-            }
-
-            PlayerConnection? opponent;
-            lock (_playersLock)
-            {
-                _players.TryGetValue(playerId, out opponent);
-            }
-
-            if (opponent != null && opponent.IsConnected)
-            {
-                EnqueuePlayerToLobby(opponent);
-            }
-        }
-
-        await TryStartGamesAsync();
-    }
+/// <summary>
+/// Réponse listant les rooms
+/// </summary>
+[MessagePackObject]
+public class GameListResponse
+{
+    [Key(0)] public List<GameSummary> Games { get; set; } = new();
 }
