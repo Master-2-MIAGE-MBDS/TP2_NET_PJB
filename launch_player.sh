@@ -41,4 +41,4 @@ echo "🚀 Démarrage du client sur le port ${PORT}..."
 echo "👤 Joueur: $PLAYER_NAME"
 echo ""
 
-exec dotnet run -- --host 127.0.0.1 --port "${PORT}" --name "${PLAYER_NAME}"
+exec dotnet run "${PLAYER_NAME}"
