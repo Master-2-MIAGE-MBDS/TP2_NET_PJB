@@ -8,6 +8,7 @@ namespace Gauniv.GameServer.Services;
 public class TicTacToeGame
 {
     public string GameId { get; }
+    public string Name { get; }
     public TicTacToeBoard Board { get; }
     
     public string? PlayerXId { get; set; }
@@ -18,10 +19,12 @@ public class TicTacToeGame
     public int PlayerXScore { get; private set; }
     public int PlayerOScore { get; private set; }
     
-    public TicTacToeGame(string gameId)
+    public TicTacToeGame(string gameId, string name)
     {
         GameId = gameId;
+        Name = name;
         Board = new TicTacToeBoard();
+        Board.Status = GameStatus.WaitingForPlayers;
     }
     
     /// <summary>
@@ -161,6 +164,22 @@ public class TicTacToeGame
             WinningLine = Board.WinningLine,
             PlayerXScore = PlayerXScore,
             PlayerOScore = PlayerOScore
+        };
+    }
+
+    public GameSummary ToSummary()
+    {
+        var local_playerCount = 0;
+        if (!string.IsNullOrEmpty(PlayerXId)) local_playerCount++;
+        if (!string.IsNullOrEmpty(PlayerOId)) local_playerCount++;
+
+        return new GameSummary
+        {
+            GameId = GameId,
+            Name = Name,
+            PlayerCount = local_playerCount,
+            MaxPlayers = 2,
+            Status = Board.Status.ToString()
         };
     }
     

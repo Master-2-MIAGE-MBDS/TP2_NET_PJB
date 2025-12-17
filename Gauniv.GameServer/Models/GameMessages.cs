@@ -12,6 +12,11 @@ public enum MessageType
     PlayerDisconnect = 2,
     PlayerAction = 3,
     PlayerReady = 4,
+
+    // Lobby / salon
+    CreateGame = 12,
+    ListGames = 13,
+    JoinGame = 14,
     
     // Messages spécifiques Morpion
     MakeMove = 10,
@@ -25,6 +30,9 @@ public enum MessageType
     PlayerLeft = 104,
     GameStarted = 105,
     GameEnded = 106,
+    GameCreated = 107,
+    GameList = 108,
+    GameJoined = 109,
     
     // Messages spécifiques Morpion serveur
     MoveMade = 110,
@@ -67,6 +75,26 @@ public class PlayerConnectData
 }
 
 /// <summary>
+/// Demande de création de partie
+/// </summary>
+[MessagePackObject]
+public class CreateGameRequest
+{
+    [Key(0)]
+    public string GameName { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Demande de rejoindre une partie
+/// </summary>
+[MessagePackObject]
+public class JoinGameRequest
+{
+    [Key(0)]
+    public string GameId { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Données d'action d'un joueur
 /// </summary>
 [MessagePackObject]
@@ -96,6 +124,61 @@ public class GameStateData
     
     [Key(3)]
     public Dictionary<string, object>? CustomData { get; set; }
+}
+
+/// <summary>
+/// Résumé d'une partie pour la liste/lobby
+/// </summary>
+[MessagePackObject]
+public class GameSummary
+{
+    [Key(0)]
+    public string GameId { get; set; } = string.Empty;
+
+    [Key(1)]
+    public string Name { get; set; } = string.Empty;
+
+    [Key(2)]
+    public int PlayerCount { get; set; }
+
+    [Key(3)]
+    public int MaxPlayers { get; set; }
+
+    [Key(4)]
+    public string Status { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Réponse listant les parties disponibles
+/// </summary>
+[MessagePackObject]
+public class GameListResponse
+{
+    [Key(0)]
+    public List<GameSummary> Games { get; set; } = new();
+}
+
+/// <summary>
+/// Réponse de création de partie
+/// </summary>
+[MessagePackObject]
+public class GameCreatedData
+{
+    [Key(0)]
+    public GameSummary Game { get; set; } = new();
+}
+
+/// <summary>
+/// Réponse de join de partie
+/// </summary>
+[MessagePackObject]
+public class GameJoinedData
+{
+    [Key(0)]
+    public GameSummary Game { get; set; } = new();
+
+    [Key(1)]
+    public string Role { get; set; } = string.Empty;
 }
 
 /// <summary>

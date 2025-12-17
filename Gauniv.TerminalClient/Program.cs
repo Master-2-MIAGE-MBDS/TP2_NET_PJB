@@ -27,6 +27,9 @@ public enum MessageType
     PlayerDisconnect = 2,
     PlayerAction = 3,
     PlayerReady = 4,
+    CreateGame = 12,
+    ListGames = 13,
+    JoinGame = 14,
     MakeMove = 10,
     RequestRematch = 11,
     ServerWelcome = 100,
@@ -36,6 +39,9 @@ public enum MessageType
     PlayerLeft = 104,
     GameStarted = 105,
     GameEnded = 106,
+    GameCreated = 107,
+    GameList = 108,
+    GameJoined = 109,
     MoveMade = 110,
     InvalidMove = 111,
     GameWon = 112,
@@ -60,6 +66,18 @@ public class PlayerConnectData
 }
 
 [MessagePackObject]
+public class CreateGameRequest
+{
+    [Key(0)] public string GameName { get; set; } = string.Empty;
+}
+
+[MessagePackObject]
+public class JoinGameRequest
+{
+    [Key(0)] public string GameId { get; set; } = string.Empty;
+}
+
+[MessagePackObject]
 public class PlayerInfo
 {
     [Key(0)] public string PlayerId { get; set; } = string.Empty;
@@ -75,6 +93,35 @@ public class GameStateData
     [Key(1)] public List<PlayerInfo> Players { get; set; } = new();
     [Key(2)] public string Status { get; set; } = string.Empty;
     [Key(3)] public Dictionary<string, object>? CustomData { get; set; }
+}
+
+[MessagePackObject]
+public class GameSummary
+{
+    [Key(0)] public string GameId { get; set; } = string.Empty;
+    [Key(1)] public string Name { get; set; } = string.Empty;
+    [Key(2)] public int PlayerCount { get; set; }
+    [Key(3)] public int MaxPlayers { get; set; }
+    [Key(4)] public string Status { get; set; } = string.Empty;
+}
+
+[MessagePackObject]
+public class GameListResponse
+{
+    [Key(0)] public List<GameSummary> Games { get; set; } = new();
+}
+
+[MessagePackObject]
+public class GameCreatedData
+{
+    [Key(0)] public GameSummary Game { get; set; } = new();
+}
+
+[MessagePackObject]
+public class GameJoinedData
+{
+    [Key(0)] public GameSummary Game { get; set; } = new();
+    [Key(1)] public string Role { get; set; } = string.Empty;
 }
 
 [MessagePackObject]
@@ -112,9 +159,12 @@ public static class Program
     private static NetworkStream? _stream;
     private static string? _myPlayerId;
     private static string? _myPlayerName;
+    private static string? _currentGameId;
     private static TicTacToeGameState? _gameState;
     private static bool _gameInProgress = false;
+    private static bool _waitingForStart = false;
     private static bool _hasOtherPlayer = false;
+    private static List<GameSummary> _availableGames = new();
 
     public static async Task Main(string[] args)
     {
@@ -167,7 +217,7 @@ public static class Program
 
         var cts = new CancellationTokenSource();
         var receiver = Task.Run(() => ReceiveLoopAsync(cts.Token));
-        var moveHandler = Task.Run(() => HandleMoveInputAsync(cts.Token));
+        var inputHandler = Task.Run(() => HandleUserInputAsync(cts.Token));
 
         // Send PlayerConnect
         await SendAsync(new GameMessage
@@ -179,7 +229,7 @@ public static class Program
         Console.WriteLine("[Client] Appuyez sur Ctrl+C pour quitter.\n");
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
-        try { await Task.WhenAll(receiver, moveHandler); } catch { }
+        try { await Task.WhenAll(receiver, inputHandler); } catch { }
         Console.WriteLine("[Client] Déconnecté.");
     }
 
@@ -190,10 +240,10 @@ public static class Program
         Console.WriteLine("╚════════════════════════════════════════╝\n");
     }
 
-    private static void PrintSuccess(string msg) => Console.WriteLine($"[OK] {msg}");
-    private static void PrintError(string msg) => Console.WriteLine($"[ERREUR] {msg}");
-    private static void PrintInfo(string msg) => Console.WriteLine($"[INFO] {msg}");
-    private static void PrintWaiting(string msg) => Console.WriteLine($"[EN ATTENTE] {msg}");
+    private static void PrintSuccess(string msg) => Console.WriteLine($"[✓] {msg}");
+    private static void PrintError(string msg) => Console.WriteLine($"[✗] {msg}");
+    private static void PrintInfo(string msg) => Console.WriteLine($"[ℹ] {msg}");
+    private static void PrintWaiting(string msg) => Console.WriteLine($"[⏳] {msg}");
 
     private static async Task SendAsync(GameMessage message)
     {
@@ -262,7 +312,57 @@ public static class Program
             case MessageType.ServerWelcome:
                 _myPlayerId = msg.PlayerId;
                 PrintSuccess($"Bienvenue! Mon ID: {_myPlayerId}");
-                PrintWaiting("En attente d'un adversaire...");
+                break;
+
+            case MessageType.GameCreated:
+                if (msg.Data != null)
+                {
+                    var created = MessagePackSerializer.Deserialize<GameCreatedData>(msg.Data);
+                    _currentGameId = created.Game.GameId;
+                    _gameInProgress = false;
+                    _waitingForStart = true;
+                    _hasOtherPlayer = false;
+                    PrintSuccess($"✓ Partie créée: '{created.Game.Name}' (ID: {created.Game.GameId[..8]}...)");
+                    PrintWaiting("En attente d'un autre joueur pour démarrer...");
+                }
+                break;
+
+            case MessageType.GameList:
+                if (msg.Data != null)
+                {
+                    var list = MessagePackSerializer.Deserialize<GameListResponse>(msg.Data);
+                    _availableGames = list.Games;
+                    Console.WriteLine();
+                    if (_availableGames.Count == 0)
+                    {
+                        PrintInfo("Aucune partie en attente. Créez-en une !");
+                    }
+                    else
+                    {
+                        Console.WriteLine("╔════════════════════════════════════════╗");
+                        Console.WriteLine("║    Parties en attente de joueurs        ║");
+                        Console.WriteLine("╚════════════════════════════════════════╝");
+                        foreach (var g in _availableGames)
+                        {
+                            Console.WriteLine($"Nom: {g.Name}");
+                            Console.WriteLine($"ID:  {g.GameId}");
+                            Console.WriteLine($"Joueurs: {g.PlayerCount}/{g.MaxPlayers}");
+                            Console.WriteLine();
+                        }
+                    }
+                }
+                break;
+
+            case MessageType.GameJoined:
+                if (msg.Data != null)
+                {
+                    var joined = MessagePackSerializer.Deserialize<GameJoinedData>(msg.Data);
+                    _currentGameId = joined.Game.GameId;
+                    _waitingForStart = true;
+                    _hasOtherPlayer = false;
+                    PrintSuccess($"✓ Rejoint: '{joined.Game.Name}' (role: {joined.Role})");
+                    PrintWaiting("En attente du deuxième joueur...");
+                }
                 break;
 
             case MessageType.PlayerJoined:
@@ -273,8 +373,9 @@ public static class Program
                         var info = MessagePackSerializer.Deserialize<PlayerInfo>(msg.Data);
                         if (_myPlayerId != info.PlayerId)
                         {
-                            PrintInfo($"{info.PlayerName} a rejoint la salle");
+                            PrintSuccess($"✓ {info.PlayerName} a rejoint la partie !");
                             _hasOtherPlayer = true;
+                            _waitingForStart = false;
                         }
                     }
                     catch { }
@@ -283,8 +384,9 @@ public static class Program
 
             case MessageType.GameStarted:
                 _gameInProgress = true;
-                PrintSuccess("La partie commence");
-                PrintInfo("Attente du premier coup...");
+                _waitingForStart = false;
+                PrintSuccess("═══ LA PARTIE COMMENCE ═══");
+                PrintInfo("C'est au joueur X de commencer...");
                 break;
 
             case MessageType.GameState:
@@ -294,8 +396,14 @@ public static class Program
                     {
                         var gs = MessagePackSerializer.Deserialize<TicTacToeGameState>(msg.Data);
                         _gameState = gs;
-                        PrintInfo($"État du jeu reçu: {gs.PlayerXName} (X) vs {gs.PlayerOName} (O)");
-                        DisplayBoard();
+                        _currentGameId = gs.GameId;
+                        _waitingForStart = gs.Status == GameStatus.WaitingForPlayers;
+                        _gameInProgress = gs.Status == GameStatus.InProgress;
+                        if (_gameInProgress)
+                        {
+                            PrintInfo($"État du jeu: {gs.PlayerXName} (X) vs {gs.PlayerOName} (O)");
+                            DisplayBoard();
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -339,6 +447,7 @@ public static class Program
                         string winner = _gameState.CurrentPlayer == CellState.X ? _gameState.PlayerXName : _gameState.PlayerOName;
                         PrintSuccess($"{winner} a gagné");
                         _gameInProgress = false;
+                        _waitingForStart = false;
                     }
                     catch { }
                 }
@@ -347,6 +456,7 @@ public static class Program
             case MessageType.GameDraw:
                 PrintInfo("Match nul");
                 _gameInProgress = false;
+                _waitingForStart = false;
                 break;
 
             case MessageType.ServerError:
@@ -379,7 +489,11 @@ public static class Program
     {
         if (_gameState == null) return;
         
-        Console.WriteLine("\n┌───┬───┬───┐");
+        Console.WriteLine("\n╔═══════════════════╗");
+        Console.WriteLine("║     PLATEAU       ║");
+        Console.WriteLine("╚═══════════════════╝\n");
+        
+        Console.WriteLine("┌───┬───┬───┐");
         for (int row = 0; row < 3; row++)
         {
             Console.Write("│");
@@ -397,13 +511,14 @@ public static class Program
             Console.WriteLine();
             if (row < 2) Console.WriteLine("├───┼───┼───┤");
         }
-        Console.WriteLine("└───┴───┴───┘");
+        Console.WriteLine("└───┴───┴───┘\n");
 
         string currentTurn = _gameState.CurrentPlayer == CellState.X ? _gameState.PlayerXName : _gameState.PlayerOName;
-        PrintInfo($"Tour de {currentTurn} ({(_gameState.CurrentPlayer == CellState.X ? "X" : "O")})");
+        Console.WriteLine($"[X] {_gameState.PlayerXName}  vs  [O] {_gameState.PlayerOName}");
+        Console.WriteLine($"\n>>> Tour: {currentTurn} ({(_gameState.CurrentPlayer == CellState.X ? "X" : "O")})\n");
     }
 
-    private static async Task HandleMoveInputAsync(CancellationToken ct)
+    private static async Task HandleUserInputAsync(CancellationToken ct)
     {
         bool waitingForRematchResponse = false;
 
@@ -411,7 +526,7 @@ public static class Program
         {
             try
             {
-                // Pendant le jeu et on a reçu l'état du jeu
+                // Phase gameplay - joueur fait un coup
                 if (_gameInProgress && _gameState != null && _myPlayerId != null && !waitingForRematchResponse)
                 {
                     bool isMyTurn = (_gameState.CurrentPlayer == CellState.X && _gameState.PlayerXId == _myPlayerId) ||
@@ -433,21 +548,21 @@ public static class Program
                         }
                         else
                         {
-                            PrintError($"Position invalide. Entrez un nombre entre 0 et 8.");
+                            PrintError("Position invalide. Entrez un nombre entre 0 et 8.");
                         }
                     }
                     else
                     {
-                        await Task.Delay(500, ct);
+                        await Task.Delay(300, ct);
                     }
                 }
-                // Si la partie est terminée
-                else if (!_gameInProgress && _myPlayerId != null && _hasOtherPlayer)
+                // Phase fin de partie - proposition revanche
+                else if (!_gameInProgress && _myPlayerId != null && _hasOtherPlayer && !waitingForRematchResponse && _currentGameId != null)
                 {
                     waitingForRematchResponse = true;
                     Console.Write("\nVoulez-vous rejouer? (oui/non): ");
                     string? input = await Task.Run(() => Console.ReadLine(), ct);
-                    
+
                     if (input?.ToLower() == "oui" || input?.ToLower() == "o" || input?.ToLower() == "y" || input?.ToLower() == "yes")
                     {
                         await SendAsync(new GameMessage
@@ -460,13 +575,142 @@ public static class Program
                     }
                     else
                     {
-                        PrintInfo("Déconnexion...");
-                        break;
+                        PrintInfo("Retour au menu principal...");
+                        _currentGameId = null;
+                        _gameState = null;
+                        _hasOtherPlayer = false;
+                        _waitingForStart = false;
+                        waitingForRematchResponse = false;
                     }
                 }
+                // Phase attente - joueur attend que l'autre rejoint ou la partie commence
+                else if (_waitingForStart && _currentGameId != null && _myPlayerId != null)
+                {
+                    // Vider le buffer clavier pour ignorer les inputs pendant l'attente
+                    while (Console.KeyAvailable)
+                    {
+                        Console.ReadKey(true);
+                    }
+                    // Attente silencieuse - le message a déjà été affiché lors de la création/join
+                    await Task.Delay(500, ct);
+                }
+                // Menu principal - lobby
                 else
                 {
-                    await Task.Delay(500, ct);
+                    Console.WriteLine("\n╔════════════════════════════════════════╗");
+                    Console.WriteLine("║     LOBBY - Choisir une action         ║");
+                    Console.WriteLine("╚════════════════════════════════════════╝");
+                    Console.WriteLine("  [c] Créer une nouvelle partie");
+                    Console.WriteLine("  [l] Lister les parties en attente");
+                    Console.WriteLine("  [j] Rejoindre une partie par ID");
+                    Console.WriteLine("  [q] Quitter");
+                    Console.Write("\nVotre choix: ");
+                    string? input = await Task.Run(() => Console.ReadLine(), ct);
+
+                    // Si, pendant la saisie, l'état est passé en attente de démarrage,
+                    // ignorer l'entrée et ne pas permettre d'autres actions de lobby.
+                    if (_waitingForStart && _currentGameId != null)
+                    {
+                        // Vider aussi le buffer ici au cas où
+                        while (Console.KeyAvailable)
+                        {
+                            Console.ReadKey(true);
+                        }
+                        await Task.Delay(100, ct);
+                        continue;
+                    }
+
+                    // Si l'état a changé pendant la saisie (la partie a démarré),
+                    // interpréter une entrée numérique comme un coup au lieu d'un choix de menu
+                    if (_gameInProgress && _gameState != null && _myPlayerId != null)
+                    {
+                        if (int.TryParse(input, out int position) && position >= 0 && position <= 8)
+                        {
+                            await SendAsync(new GameMessage
+                            {
+                                Type = MessageType.MakeMove,
+                                PlayerId = _myPlayerId,
+                                Data = MessagePackSerializer.Serialize(new TicTacToeMove { Position = position })
+                            });
+                            continue;
+                        }
+                        // Sinon, laisser tomber cette entrée et repasser en boucle
+                        // pour afficher le prompt de coup correct
+                        await Task.Delay(100, ct);
+                        continue;
+                    }
+
+                    switch (input?.Trim().ToLower())
+                    {
+                        case "c":
+                        case "create":
+                            Console.Write("Nom de la partie (facultatif, appuyez sur Entrée pour auto): ");
+                            var gameName = await Task.Run(() => Console.ReadLine(), ct) ?? string.Empty;
+                            await SendAsync(new GameMessage
+                            {
+                                Type = MessageType.CreateGame,
+                                PlayerId = _myPlayerId,
+                                Data = MessagePackSerializer.Serialize(new CreateGameRequest { GameName = gameName })
+                            });
+                            _waitingForStart = true;
+                            PrintWaiting("Partie créée. En attente d'un autre joueur...");
+                            break;
+
+                        case "l":
+                        case "list":
+                            PrintInfo("Récupération de la liste des parties...");
+                            await SendAsync(new GameMessage
+                            {
+                                Type = MessageType.ListGames,
+                                PlayerId = _myPlayerId
+                            });
+                            await Task.Delay(400, ct);
+                            break;
+
+                        case "j":
+                        case "join":
+                            if (_availableGames.Count > 0)
+                            {
+                                Console.WriteLine("\n╔════════════════════════════════════════╗");
+                                Console.WriteLine("║      Parties disponibles à rejoindre   ║");
+                                Console.WriteLine("╚════════════════════════════════════════╝");
+                                foreach (var g in _availableGames)
+                                {
+                                    Console.WriteLine($"{g.Name} ({g.PlayerCount}/{g.MaxPlayers})");
+                                    Console.WriteLine($"ID: {g.GameId}");
+                                    Console.WriteLine();
+                                }
+                            }
+                            else
+                            {
+                                PrintInfo("Aucune partie disponible. Créez-en une ou attendez.");
+                                break;
+                            }
+                            Console.Write("Entrez l'ID de la partie à rejoindre: ");
+                            var gameId = await Task.Run(() => Console.ReadLine(), ct);
+                            if (!string.IsNullOrWhiteSpace(gameId))
+                            {
+                                await SendAsync(new GameMessage
+                                {
+                                    Type = MessageType.JoinGame,
+                                    PlayerId = _myPlayerId,
+                                    Data = MessagePackSerializer.Serialize(new JoinGameRequest { GameId = gameId.Trim() })
+                                });
+                                _waitingForStart = true;
+                                PrintWaiting("Connexion à la partie...");
+                            }
+                            break;
+
+                        case "q":
+                        case "quit":
+                            PrintInfo("Déconnexion...");
+                            return;
+
+                        default:
+                            PrintError("Choix invalide. Réessayez.");
+                            await Task.Delay(400, ct);
+                            break;
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -476,6 +720,7 @@ public static class Program
             catch (Exception ex)
             {
                 PrintError($"Erreur: {ex.Message}");
+                await Task.Delay(500, ct);
             }
         }
     }
