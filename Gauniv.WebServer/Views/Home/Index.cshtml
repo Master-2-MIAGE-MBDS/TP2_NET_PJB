@@ -8,9 +8,15 @@
     <p>Ce projet est un exemple en C# qui regroupe trois parties principales :</p>
 
     <ul>
-        <li><strong>Server Web</strong> : une application ASP.NET Core fournissant des pages Razor, des endpoints API et la gestion des utilisateurs (Identity).</li>
-        <li><strong>Server de jeu</strong> : un service qui gère la logique du jeu et les communications temps réel (ex. SignalR).</li>
-        <li><strong>Le jeu — Morpion</strong> : une implémentation du jeu Morpion (Tic-Tac-Toe) pour démontrer l'intégration front / back.</li>
+        <li><strong>Server Web</strong> : une application ASP.NET Core fournissant des pages Razor, des endpoints API et
+            la gestion des utilisateurs (Identity).
+        </li>
+        <li><strong>Server de jeu</strong> : un service qui gère la logique du jeu et les communications temps réel (ex.
+            SignalR).
+        </li>
+        <li><strong>Le jeu — Morpion</strong> : une implémentation du jeu Morpion (Tic-Tac-Toe) pour démontrer
+            l'intégration front / back.
+        </li>
     </ul>
 
     <h2>Comment le projet est structuré</h2>
@@ -30,8 +36,12 @@
     <h2>Développement</h2>
     <p>Pour développer :</p>
     <ol>
-        <li>La base de données utilisée par défaut dans ce projet est une base InMemory lors du développement (configurée dans <code>Program.cs</code>).</li>
-        <li>Pour stocker les binaires (payload) du jeu, il est recommandé d'utiliser un stockage de type blob (S3 / Azure Blob) pour les fichiers volumineux.</li>
+        <li>La base de données utilisée par défaut dans ce projet est une base InMemory lors du développement
+            (configurée dans <code>Program.cs</code>).
+        </li>
+        <li>Pour stocker les binaires (payload) du jeu, il est recommandé d'utiliser un stockage de type blob (S3 /
+            Azure Blob) pour les fichiers volumineux.
+        </li>
         <li>La logique temps réel (multijoueur) est implémentée via SignalR.</li>
     </ol>
 </div>

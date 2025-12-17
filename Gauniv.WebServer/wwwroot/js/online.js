@@ -5,7 +5,7 @@
 "use strict";
 
 var connection = new signalR.HubConnectionBuilder().withUrl("/online").build();
-connection.on("ReceiveMessage", function ( message) {
+connection.on("ReceiveMessage", function (message) {
     console.log("message", message);
 });
 

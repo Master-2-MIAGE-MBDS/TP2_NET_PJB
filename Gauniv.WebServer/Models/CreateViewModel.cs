@@ -1,4 +1,5 @@
 ﻿#region Header
+
 // Cyril Tisserand
 // Projet Gauniv - WebServer
 // Gauniv 2025
@@ -25,19 +26,20 @@
 // use or other dealings in this Software without prior written authorization from the  Sophia-Antipolis University.
 // 
 // Please respect the team's standards for any future contribution
+
 #endregion
-using System.Runtime.InteropServices;
 
 namespace Gauniv.WebServer.Models
 {
-    public class CreateViewModel()
+    public class CreateViewModel
     {
         public string Name { get; set; }
         public float Price { get; set; }
         public IFormFile Content { get; set; }
         public int[] Categories { get; set; }
     }
-    public class EditViewModel()
+
+    public class EditViewModel
     {
         public int Id { get; set; }
         public string? Name { get; set; }

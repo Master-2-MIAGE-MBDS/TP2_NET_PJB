@@ -9,11 +9,9 @@ namespace Gauniv.WebServer.Data
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         [Key]
         public int Id { get; set; }
-        [Required]
-        [MaxLength(50)]
-        public string Libelle { get; set; } = string.Empty;
-        
-        [JsonIgnore]
-        public ICollection<Game> Games { get; set; } = new List<Game>();
+
+        [Required] [MaxLength(50)] public string Libelle { get; set; } = string.Empty;
+
+        [JsonIgnore] public ICollection<Game> Games { get; set; } = new List<Game>();
     }
 }

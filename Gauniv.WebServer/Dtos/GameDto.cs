@@ -1,4 +1,5 @@
 ﻿#region Header
+
 // Cyril Tisserand
 // Projet Gauniv - WebServer
 // Gauniv 2025
@@ -25,6 +26,7 @@
 // use or other dealings in this Software without prior written authorization from the  Sophia-Antipolis University.
 // 
 // Please respect the team's standards for any future contribution
+
 #endregion
 
 namespace Gauniv.WebServer.Dtos
@@ -36,9 +38,9 @@ namespace Gauniv.WebServer.Dtos
         public string Name { get; set; } = string.Empty;
 
         public string? Description { get; set; }
-        
+
         public decimal Price { get; set; }
-        
-        public List<CategorieDtoLight> Categories { get; set; } = new List<CategorieDtoLight>();
+
+        public List<CategorieDtoLight> Categories { get; set; } = new();
     }
 }
