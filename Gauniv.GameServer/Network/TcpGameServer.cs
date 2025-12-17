@@ -150,6 +150,29 @@ public class TcpGameServer
         var tasks = connectionsCopy.Select(c => c.SendMessageAsync(message));
         await Task.WhenAll(tasks);
     }
+
+    /// <summary>
+    /// Envoie un message à une sélection de joueurs
+    /// </summary>
+    public async Task SendMessageToPlayersAsync(IEnumerable<string> playerIds, GameMessage message)
+    {
+        var targets = new List<PlayerConnection>();
+        var idSet = new HashSet<string>(playerIds);
+
+        lock (_connectionsLock)
+        {
+            foreach (var connection in _connections)
+            {
+                if (connection.PlayerId != null && idSet.Contains(connection.PlayerId))
+                {
+                    targets.Add(connection);
+                }
+            }
+        }
+
+        var tasks = targets.Select(c => c.SendMessageAsync(message));
+        await Task.WhenAll(tasks);
+    }
     
     /// <summary>
     /// Envoie un message à un client spécifique
