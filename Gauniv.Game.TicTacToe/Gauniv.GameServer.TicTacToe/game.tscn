@@ -1,9 +1,6 @@
 [gd_scene load_steps=8 format=3 uid="uid://xa8xyu6q2tib"]
 
 [ext_resource type="Script" uid="uid://bgbihn1hbba4h" path="res://scripts/game.gd" id="1_ryrav"]
-[ext_resource type="Script" uid="uid://i4sxfcx8wrae" path="res://scripts/game/Board.gd" id="2_eow3j"]
-[ext_resource type="Texture2D" uid="uid://bs2q8griio5mc" path="res://assets/meluche/meluche.png" id="2_feb5d"]
-[ext_resource type="Texture2D" uid="uid://bbevk7u6v3isk" path="res://assets/lepen/lepen.png" id="3_fc0e3"]
 [ext_resource type="Script" uid="uid://cjfdgsunpmtvf" path="res://scripts/menus/MainMenu.gd" id="4_eow3j"]
 [ext_resource type="Script" uid="uid://chesh75bskg8a" path="res://scripts/menus/SelectionMenu.gd" id="5_j5wjh"]
 [ext_resource type="Script" uid="uid://8v5j2cdyxber" path="res://scripts/menus/OnlineMenu.gd" id="6_vef74"]
@@ -11,129 +8,7 @@
 [node name="Game" type="Node2D"]
 script = ExtResource("1_ryrav")
 
-[node name="Board" type="Node2D" parent="."]
-visible = false
-script = ExtResource("2_eow3j")
-
-[node name="ScoreP1" type="VBoxContainer" parent="Board"]
-offset_right = 380.0
-offset_bottom = 470.0
-
-[node name="ImageP1" type="TextureRect" parent="Board/ScoreP1"]
-layout_mode = 2
-texture = ExtResource("2_feb5d")
-
-[node name="LabelScoreP1" type="Label" parent="Board/ScoreP1"]
-custom_minimum_size = Vector2(200, 100)
-layout_mode = 2
-theme_override_font_sizes/font_size = 150
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="ScoreP2" type="VBoxContainer" parent="Board"]
-offset_left = 1678.0
-offset_top = 5.0
-offset_right = 1998.0
-offset_bottom = 529.0
-
-[node name="ImageP2" type="TextureRect" parent="Board/ScoreP2"]
-layout_mode = 2
-texture = ExtResource("3_fc0e3")
-
-[node name="LabelScoreP2" type="Label" parent="Board/ScoreP2"]
-custom_minimum_size = Vector2(200, 100)
-layout_mode = 2
-theme_override_font_sizes/font_size = 150
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="GridContainer" type="GridContainer" parent="Board"]
-offset_left = 419.0
-offset_top = 380.0
-offset_right = 1627.0
-offset_bottom = 1588.0
-columns = 3
-
-[node name="Button" type="Button" parent="Board/GridContainer"]
-custom_minimum_size = Vector2(400, 400)
-layout_mode = 2
-theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 120
-icon_alignment = 1
-
-[node name="Button2" type="Button" parent="Board/GridContainer"]
-custom_minimum_size = Vector2(400, 400)
-layout_mode = 2
-theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 120
-icon_alignment = 1
-
-[node name="Button3" type="Button" parent="Board/GridContainer"]
-custom_minimum_size = Vector2(400, 400)
-layout_mode = 2
-theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 120
-icon_alignment = 1
-
-[node name="Button4" type="Button" parent="Board/GridContainer"]
-custom_minimum_size = Vector2(400, 400)
-layout_mode = 2
-theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 120
-icon_alignment = 1
-
-[node name="Button5" type="Button" parent="Board/GridContainer"]
-custom_minimum_size = Vector2(400, 400)
-layout_mode = 2
-theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 120
-icon_alignment = 1
-
-[node name="Button6" type="Button" parent="Board/GridContainer"]
-custom_minimum_size = Vector2(400, 400)
-layout_mode = 2
-theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 120
-icon_alignment = 1
-
-[node name="Button7" type="Button" parent="Board/GridContainer"]
-custom_minimum_size = Vector2(400, 400)
-layout_mode = 2
-theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 120
-icon_alignment = 1
-
-[node name="Button8" type="Button" parent="Board/GridContainer"]
-custom_minimum_size = Vector2(400, 400)
-layout_mode = 2
-theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 120
-icon_alignment = 1
-
-[node name="Button9" type="Button" parent="Board/GridContainer"]
-custom_minimum_size = Vector2(400, 400)
-layout_mode = 2
-theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 120
-icon_alignment = 1
-
-[node name="ButtonRestart" type="Button" parent="Board"]
-offset_left = 573.0
-offset_top = 39.0
-offset_right = 1439.0
-offset_bottom = 326.0
-theme_override_font_sizes/font_size = 125
-text = "Rejouer"
-
-[node name="AudioPlayer" type="AudioStreamPlayer2D" parent="Board"]
-
-[node name="ButtonBack" type="Button" parent="Board"]
-offset_left = 745.0
-offset_top = 1675.0
-offset_right = 1297.0
-offset_bottom = 1846.0
-theme_override_font_sizes/font_size = 90
-text = "Retour"
+[node name="BoardContainer" type="Node2D" parent="."]
 
 [node name="MainMenu" type="Control" parent="."]
 visible = false
@@ -370,13 +245,55 @@ layout_mode = 2
 size_flags_vertical = 4
 text = ">"
 
+[node name="LabelPlayerName" type="Label" parent="OnlineMenu/SelectionContainer"]
+custom_minimum_size = Vector2(400, 50)
+layout_mode = 0
+offset_left = 490.0
+offset_top = 850.0
+offset_right = 890.0
+offset_bottom = 900.0
+theme_override_font_sizes/font_size = 40
+text = "Votre pseudo:"
+
+[node name="InputPlayerName" type="LineEdit" parent="OnlineMenu/SelectionContainer"]
+custom_minimum_size = Vector2(500, 80)
+layout_mode = 0
+offset_left = 490.0
+offset_top = 910.0
+offset_right = 990.0
+offset_bottom = 990.0
+theme_override_font_sizes/font_size = 40
+placeholder_text = "Entrez votre pseudo"
+max_length = 20
+
+[node name="LabelGameName" type="Label" parent="OnlineMenu/SelectionContainer"]
+custom_minimum_size = Vector2(400, 50)
+layout_mode = 0
+offset_left = 490.0
+offset_top = 1000.0
+offset_right = 890.0
+offset_bottom = 1050.0
+theme_override_font_sizes/font_size = 40
+text = "Nom de la partie:"
+
+[node name="InputGameName" type="LineEdit" parent="OnlineMenu/SelectionContainer"]
+custom_minimum_size = Vector2(500, 80)
+layout_mode = 0
+offset_left = 490.0
+offset_top = 1060.0
+offset_right = 990.0
+offset_bottom = 1140.0
+theme_override_font_sizes/font_size = 40
+placeholder_text = "Entrez le nom de la partie"
+max_length = 30
+
 [node name="ButtonConfirmCreate" type="Button" parent="OnlineMenu/SelectionContainer"]
 custom_minimum_size = Vector2(500, 150)
 layout_mode = 0
 offset_left = 490.0
-offset_top = 1077.0
+offset_top = 1200.0
 offset_right = 1062.0
-offset_bottom = 1227.0
+offset_bottom = 1350.0
 size_flags_horizontal = 0
 size_flags_vertical = 0
 theme_override_font_sizes/font_size = 75
