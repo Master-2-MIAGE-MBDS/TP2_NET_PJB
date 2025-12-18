@@ -18,5 +18,7 @@ namespace Gauniv.WebServer.Models
         public decimal? MaxPrice { get; set; }
         public string? Search { get; set; }
         public decimal? GlobalMaxPrice { get; set; }
+        public bool OnlyOwned { get; set; }
+        public bool IsAuthenticated { get; set; }
     }
 }

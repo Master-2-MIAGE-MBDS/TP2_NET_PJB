@@ -21,7 +21,7 @@ namespace Gauniv.WebServer.Controllers
             _userManager = userManager;
         }
 
-        public async Task<IActionResult> Index(int? categoryId, decimal? minPrice, decimal? maxPrice, string? search)
+        public async Task<IActionResult> Index(int? categoryId, decimal? minPrice, decimal? maxPrice, string? search, bool onlyOwned = false)
         {
             GameIndexViewModel vm = new();
 
@@ -32,6 +32,36 @@ namespace Gauniv.WebServer.Controllers
                 .ToListAsync();
 
             IQueryable<Game> query = _db.Games.AsQueryable();
+
+            // Appliquer le filtre de possession si demandé et si l'utilisateur est authentifié
+            var user = await _userManager.GetUserAsync(User);
+            bool isAuthenticated = user != null;
+            
+            if (onlyOwned && isAuthenticated)
+            {
+                _logger?.LogInformation("Applying 'OnlyOwned' filter for user {UserId}", user!.Id);
+                // Récupérer les IDs des jeux achetés par l'utilisateur (à partir de PurchasedGames sur l'entité User)
+                var userId = user!.Id; // user est non-null ici car isAuthenticated == true
+                var purchasedIds = await _db.Users
+                    .Where(u => u.Id == userId)
+                    .SelectMany(u => u.PurchasedGames.Select(pg => pg.Id))
+                    .ToListAsync();
+
+                // Si aucun jeu acheté, retourner une requête vide (aucun jeu)
+                if (purchasedIds.Count == 0)
+                {
+                    _logger?.LogInformation("User {UserId} has no purchased games.", userId);
+                    query = query.Where(g => false);
+                }
+                else
+                {
+                    query = query.Where(g => purchasedIds.Contains(g.Id));
+                }
+            }
+            else if (onlyOwned && !isAuthenticated)
+            {
+                _logger?.LogInformation("OnlyOwned requested but user not authenticated; ignoring filter.");
+            }
 
             if (categoryId.HasValue)
             {
@@ -80,6 +110,9 @@ namespace Gauniv.WebServer.Controllers
             vm.MaxPrice = displayMax;
             vm.Search = search;
             vm.GlobalMaxPrice = displayGlobalMax;
+            
+            vm.IsAuthenticated = isAuthenticated;
+            vm.OnlyOwned = onlyOwned;
 
             return View(vm);
         }
