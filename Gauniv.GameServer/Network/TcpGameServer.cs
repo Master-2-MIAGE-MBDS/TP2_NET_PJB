@@ -5,9 +5,7 @@ using Gauniv.GameServer.Models;
 
 namespace Gauniv.GameServer.Network;
 
-/// <summary>
-/// Serveur TCP qui gère les connexions des joueurs
-/// </summary>
+// Serveur TCP qui gère les connexions des joueurs
 public class TcpGameServer
 {
     private readonly TcpListener _listener;
@@ -28,9 +26,7 @@ public class TcpGameServer
         _connections = new List<PlayerConnection>();
     }
     
-    /// <summary>
-    /// Démarre le serveur
-    /// </summary>
+    // Démarre le serveur
     public async Task StartAsync()
     {
         _listener.Start();
@@ -66,9 +62,7 @@ public class TcpGameServer
         }
     }
     
-    /// <summary>
-    /// Arrête le serveur
-    /// </summary>
+    // Arrête le serveur
     public async Task StopAsync()
     {
         Console.WriteLine("[Server] Arrêt en cours...");
@@ -94,9 +88,7 @@ public class TcpGameServer
         Console.WriteLine("[Server] Arrêté");
     }
     
-    /// <summary>
-    /// Gère la communication avec un client
-    /// </summary>
+    // Gère la communication avec un client
     private async Task HandleClientAsync(PlayerConnection connection)
     {
         try

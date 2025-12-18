@@ -2,9 +2,7 @@ using MessagePack;
 
 namespace Gauniv.GameServer.Models;
 
-/// <summary>
-/// Type de message échangé entre client et serveur
-/// </summary>
+// Type de message échangé entre client et serveur
 public enum MessageType
 {
     // Messages client -> serveur
@@ -36,8 +34,6 @@ public enum MessageType
     GameJoined = 109,
     
     // Messages spécifiques Morpion serveur
-    // Messages spécifiques Morpion serveur
-    // Messages spécifiques Morpion serveur
     MoveMade = 110,
     GameWon = 111,
     GameLoose = 112,
@@ -47,9 +43,7 @@ public enum MessageType
     GameStateSync = 116,
 }
 
-/// <summary>
-/// Message de base pour la communication
-/// </summary>
+// Message de base pour la communication
 [MessagePackObject]
 public class GameMessage
 {
@@ -66,9 +60,7 @@ public class GameMessage
     public byte[]? Data { get; set; }
 }
 
-/// <summary>
-/// Données de connexion d'un joueur
-/// </summary>
+// Données de connexion d'un joueur
 [MessagePackObject]
 public class PlayerConnectData
 {
@@ -79,9 +71,7 @@ public class PlayerConnectData
     public string? UserId { get; set; }
 }
 
-/// <summary>
-/// Demande de création de partie
-/// </summary>
+// Demande de création de partie
 [MessagePackObject]
 public class CreateGameRequest
 {
@@ -89,9 +79,7 @@ public class CreateGameRequest
     public string GameName { get; set; } = string.Empty;
 }
 
-/// <summary>
-/// Demande de rejoindre une partie
-/// </summary>
+// Demande de rejoindre une partie
 [MessagePackObject]
 public class JoinGameRequest
 {
@@ -151,6 +139,9 @@ public class GameSummary
 
     [Key(4)]
     public string Status { get; set; } = string.Empty;
+
+    [Key(5)]
+    public int SpectatorCount { get; set; }
 }
 
 /// <summary>
@@ -255,23 +246,21 @@ public class MoveRejectedData
     public int Position { get; set; }
 }
 
-/// <summary>
-/// État complet du jeu pour synchronisation
-/// </summary>
+// État complet du jeu pour synchronisation
 [MessagePackObject]
 public class GameStateSyncData
 {
     [Key(0)]
-    public Dictionary<string, int?[]> PlayerMoves { get; set; } = new(); // playerId -> [pos0, pos1, pos2]
-    
-    [Key(1)]
     public List<string> PlayerIds { get; set; } = new(); // Liste ordonnée des joueurs
-    
+
+    [Key(1)]
+    public Dictionary<string, int?[]> PlayerMoves { get; set; } = new(); // playerId -> [pos0, pos1, pos2]
+
     [Key(2)]
-    public string? WinnerId { get; set; } // null si pas de gagnant
-    
-    [Key(3)]
     public string GameStatus { get; set; } = "IN_PROGRESS"; // IN_PROGRESS, FINISHED, WAITING
+
+    [Key(3)]
+    public string? WinnerId { get; set; } // null si pas de gagnant
 }
 
 /// <summary>
