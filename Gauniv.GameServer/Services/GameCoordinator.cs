@@ -267,6 +267,7 @@ public class GameCoordinator
         {
             totalRooms = _rooms.Count;
             games = _rooms.Values
+                .Where(r => r.GameStatus != GameStatus.FINISHED)
                 .Select(r => new GameSummary
                 {
                     GameId = r.GameId,
@@ -343,7 +344,7 @@ public class GameCoordinator
         }
 
         // Initialiser les coups du joueur s'il n'est pas spectateur
-        if (room.PlayerIds.Count <= 2)
+        if (!isSpectator)
         {
             room.InitializePlayer(connection.PlayerId);
             room.CharactersName[connection.PlayerId] = joinRequest.Character;
@@ -788,6 +789,9 @@ public class GameCoordinator
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 Data = MessagePackSerializer.Serialize(winData)
             });
+            
+            // Envoyer l'état final aux spectateurs après la victoire
+            await BroadcastSyncToSpectatorsAsync(roomId);
         }
         
     }
