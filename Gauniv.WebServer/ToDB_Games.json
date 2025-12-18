@@ -1,0 +1,88 @@
+﻿{
+  "games": [
+    {
+      "name": "Eclipse of Dawn",
+      "description": "Un RPG narratif en monde ouvert où vos choix façonnent le destin d'un royaume en perdition.",
+      "price": 39.99,
+      "payload": "",
+      "genres": ["RPG", "Open World", "Narratif"]
+    },
+    {
+      "name": "Sky Racer 2077",
+      "description": "Jeu de course futuriste avec pilotes personnalisables et circuits dynamiques.",
+      "price": 24.99,
+      "payload": "",
+      "genres": ["Course", "Simulation"]
+    },
+    {
+      "name": "Shadow Protocol",
+      "description": "Infiltrez des bases sécurisées et neutralisez les cibles sans éveiller les soupçons.",
+      "price": 29.50,
+      "payload": "",
+      "genres": ["Infiltration", "Action"]
+    },
+    {
+      "name": "Battlefront Legends",
+      "description": "FPS multijoueur massif avec modes compétitifs et battle royale.",
+      "price": 49.99,
+      "payload": "",
+      "genres": ["FPS", "Multijoueur", "Battle Royale"]
+    },
+    {
+      "name": "Mystic Farm",
+      "description": "Simulation agricole relaxante mêlée à de la gestion et un soupçon d'aventure.",
+      "price": 9.99,
+      "payload": "",
+      "genres": ["Gestion", "Simulation", "Indé"]
+    },
+    {
+      "name": "Nightmare Depths",
+      "description": "Survival-horror atmosphérique où la moindre erreur peut être fatale.",
+      "price": 19.99,
+      "payload": "",
+      "genres": ["Horreur", "Survival-Horror", "Souls-like"]
+    },
+    {
+      "name": "Pixel Quest",
+      "description": "Plateforme rétro avec éléments rogue-like et défis de précision.",
+      "price": 14.99,
+      "payload": "",
+      "genres": ["Plateforme", "Rogue-like", "Indé"]
+    },
+    {
+      "name": "Arena Clash",
+      "description": "Jeu de combat en arène, rapide et orienté party game pour s'amuser entre amis.",
+      "price": 19.99,
+      "payload": "",
+      "genres": ["Combat", "Party Game", "Multijoueur"]
+    },
+    {
+      "name": "Kingdom Builder",
+      "description": "Construisez et gérez votre cité tout en défendant vos frontières contre des envahisseurs.",
+      "price": 34.99,
+      "payload": "",
+      "genres": ["City Builder", "Stratégie temps réel", "Gestion"]
+    },
+    {
+      "name": "Metro Shadows",
+      "description": "Un metroidvania sombre centré sur l'exploration et la progression du personnage.",
+      "price": 21.99,
+      "payload": "",
+      "genres": ["Metroidvania", "RPG", "Narratif"]
+    },
+    {
+      "name": "Rhythm Pulse",
+      "description": "Jeu de rythme coloré, accessible et parfait pour des sessions courtes.",
+      "price": 7.99,
+      "payload": "",
+      "genres": ["Rythme", "Casual"]
+    },
+    {
+      "name": "Infinite Sandbox",
+      "description": "Créatif et libre : construisez, modifiez et partagez vos mondes sandbox.",
+      "price": 12.99,
+      "payload": "",
+      "genres": ["Sandbox", "Open World", "Indé"]
+    }
+  ]
+}
