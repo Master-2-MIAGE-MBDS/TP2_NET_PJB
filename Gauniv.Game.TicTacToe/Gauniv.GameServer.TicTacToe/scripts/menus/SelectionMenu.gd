@@ -3,18 +3,18 @@ extends Control
 signal characters_selected(char_p1: String, char_p2: String)
 signal back_pressed
 
-@onready var btn_left_p1 = $SelectionP1/ButtonLeftP1
-@onready var btn_right_p1 = $SelectionP1/ButtonRightP1
-@onready var image_select_p1 = $SelectionP1/ImageSelectP1
+@onready var btn_left_p1: Button = $SelectionP1/ButtonLeftP1
+@onready var btn_right_p1: Button = $SelectionP1/ButtonRightP1
+@onready var image_select_p1: TextureRect = $SelectionP1/ImageSelectP1
 
-@onready var label_p2 = $LabelP2
-@onready var selection_p2 = $SelectionP2
-@onready var btn_left_p2 = $SelectionP2/ButtonLeftP2
-@onready var btn_right_p2 = $SelectionP2/ButtonRightP2
-@onready var image_select_p2 = $SelectionP2/ImageSelectP2
+@onready var label_p2: Label = $LabelP2
+@onready var selection_p2: HBoxContainer = $SelectionP2
+@onready var btn_left_p2: Button = $SelectionP2/ButtonLeftP2
+@onready var btn_right_p2: Button = $SelectionP2/ButtonRightP2
+@onready var image_select_p2: TextureRect = $SelectionP2/ImageSelectP2
 
-@onready var button_start = $ButtonStart
-@onready var button_back = $ButtonBack
+@onready var button_start: Button = $ButtonStart
+@onready var button_back: Button = $ButtonBack
 
 var index_p1 = 0
 var index_p2 = 1

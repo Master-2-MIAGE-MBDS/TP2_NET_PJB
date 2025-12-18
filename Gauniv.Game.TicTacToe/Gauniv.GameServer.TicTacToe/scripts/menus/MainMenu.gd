@@ -3,8 +3,8 @@ extends Control
 signal local_selected
 signal online_selected
 
-@onready var btn_local = $ButtonLocal
-@onready var btn_online = $ButtonOnline
+@onready var btn_local: Button = $ButtonLocal
+@onready var btn_online: Button = $ButtonOnline
 
 func _ready():
 	btn_local.connect("pressed", _on_local_pressed)

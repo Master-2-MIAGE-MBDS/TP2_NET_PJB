@@ -13,13 +13,17 @@ const WIN_PATTERNS = [
 
 const CHARACTERS = ["bayrou", "hollande", "lepen", "meluche", "sarkozy", "zemmour"]
 
-const SERVER_URL = "http://serveur.com/api"
+# Configuration réseau
+const SERVER_HOST = "127.0.0.1"  # localhost pour test local
+const SERVER_PORT = 7777
+const SERVER_URL = "http://serveur.com/api"  # Ancien système HTTP (à supprimer plus tard)
 
 # État global du jeu
 var is_online_mode = false
 var online_game_id = ""
 var my_player_role = ""  # "X" ou "O"
 var my_player_id = ""    # UUID du joueur
+var player_name = ""     # Pseudo du joueur
 
 # Personnages sélectionnés
 var selected_character_p1 = ""
@@ -36,6 +40,7 @@ func reset_online_state():
 	online_game_id = ""
 	my_player_role = ""
 	my_player_id = ""
+	player_name = ""
 
 # === FONCTIONS UTILITAIRES POUR LE NOUVEAU FORMAT ===
 
