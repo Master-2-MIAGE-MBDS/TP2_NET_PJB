@@ -72,9 +72,14 @@ namespace Gauniv.WebServer.Controllers
             // Renseigner les filtres sélectionnés
             vm.SelectedCategory = categoryId;
             vm.MinPrice = minPrice ?? 0m;
-            vm.MaxPrice = maxPrice ?? overallMaxPrice;
+
+            // Arrondir à l'unité supérieure pour l'affichage (gère n'importe quel nombre de décimales)
+            var displayMax = (decimal)System.Math.Ceiling((double)(maxPrice ?? overallMaxPrice));
+            var displayGlobalMax = (decimal)System.Math.Ceiling((double)GlobalMaxPrice);
+
+            vm.MaxPrice = displayMax;
             vm.Search = search;
-            vm.GlobalMaxPrice = GlobalMaxPrice;
+            vm.GlobalMaxPrice = displayGlobalMax;
 
             return View(vm);
         }
