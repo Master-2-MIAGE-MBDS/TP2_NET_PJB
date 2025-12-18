@@ -193,6 +193,8 @@ class Program
     private static string? _myPlayerName;
     private static string? _currentGameId;
     private static bool _isSpectator = false;
+    private static List<string> _lastPlayerIds = new();
+    private static Dictionary<string, int?[]> _lastPlayerMoves = new();
 
     private static ClientState _state = ClientState.Connecting;
     private static List<GameSummary> _availableGames = new();
@@ -353,6 +355,7 @@ class Program
                 GameWonData winData = MessagePackSerializer
                     .Deserialize<GameWonData>(msg.Data!);
                 PrintInfo($"La partie est terminée. Le gagnant est: {winData.WinnerName}");
+                PrintFinalBoard(winData);
                 _state = ClientState.Menu;
                 break;
 
@@ -372,7 +375,10 @@ class Program
 
             case MessageType.GameStateSync:
                 var sync = MessagePackSerializer.Deserialize<GameStateSyncData>(msg.Data!);
-                PrintInfo($"Sync: statut={sync.GameStatus}, joueurs={sync.PlayerIds.Count}");
+                // Cache l'état courant pour affichage final si nécessaire
+                _lastPlayerIds = sync.PlayerIds ?? new List<string>();
+                _lastPlayerMoves = sync.PlayerMoves ?? new Dictionary<string, int?[]>();
+                PrintInfo($"Sync: statut={sync.GameStatus}, joueurs={_lastPlayerIds.Count}");
                 PrintFullBoard(sync);
                 break;
 
@@ -497,6 +503,46 @@ class Program
                     int c = pos % 3;
                     grid[r, c] = mark;
                 }
+            }
+        }
+
+        for (int r = 0; r < 3; r++)
+        {
+            Console.WriteLine($"{grid[r,0]} {grid[r,1]} {grid[r,2]}");
+        }
+    }
+
+    private static void PrintFinalBoard(GameWonData win)
+    {
+        Console.WriteLine("Grille finale:");
+        var grid = new string[3,3];
+        for (int r = 0; r < 3; r++)
+            for (int c = 0; c < 3; c++)
+                grid[r, c] = ".";
+
+        for (int i = 0; i < _lastPlayerIds.Count; i++)
+        {
+            var pid = _lastPlayerIds[i];
+            if (!_lastPlayerMoves.TryGetValue(pid, out var moves) || moves == null) continue;
+            var mark = pid == win.WinnerId ? "." : "O";
+            foreach (var m in moves)
+            {
+                if (m is int pos)
+                {
+                    int r = pos / 3;
+                    int c = pos % 3;
+                    grid[r, c] = mark;
+                }
+            }
+        }
+
+        if (win.WinningPositions != null)
+        {
+            foreach (var pos in win.WinningPositions)
+            {
+                int r = pos / 3;
+                int c = pos % 3;
+                grid[r, c] = "X";
             }
         }
 
