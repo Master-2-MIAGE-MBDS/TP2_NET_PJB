@@ -20,6 +20,7 @@ public class GameRoom
     // Joueurs et spectateurs
     public List<string> PlayerIds { get; set; } = new();
     public List<string> SpectatorIds { get; set; } = new();
+    public Dictionary<string, string> CharactersName { get; set; } = new();
 
     // État du jeu
     public GameStatus GameStatus { get; set; } = GameStatus.WAITING;
@@ -200,6 +201,7 @@ public class GameCoordinator
         var room = new GameRoom(gameId, roomName);
         room.PlayerIds.Add(connection.PlayerId);
         room.InitializePlayer(connection.PlayerId); // Initialiser les coups du créateur
+        room.CharactersName[connection.PlayerId] = createRequest.Character;
 
         lock (_roomsLock)
         {
@@ -326,6 +328,7 @@ public class GameCoordinator
         if (room.PlayerIds.Count <= 2)
         {
             room.InitializePlayer(connection.PlayerId);
+            room.CharactersName[connection.PlayerId] = joinRequest.Character;
         }
         
         // Démarrer la partie si 2 joueurs
@@ -361,7 +364,7 @@ public class GameCoordinator
         var syncData = BuildSyncData(room);
         await connection.SendMessageAsync(new GameMessage
         {
-            Type = MessageType.GameStateSync,
+            Type = MessageType.GameStateSynced,
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             Data = MessagePackSerializer.Serialize(syncData)
         });
@@ -812,32 +815,34 @@ public class GameCoordinator
         }
 
         // Créer l'état de synchronisation
-        var syncData = new GameStateSyncData
+        var syncData = new GameStateSyncedData
         {
             PlayerIds = room.PlayerIds,
             PlayerMoves = room.PlayerMoves,
             GameStatus = room.GameStatus.ToString(),
-            WinnerId = room.WinnerId
+            WinnerId = room.WinnerId,
+            CharactersName = room.CharactersName
         };
 
         Console.WriteLine($"[Coordinator] Synchronisation envoyée à {connection.PlayerName}");
 
         await connection.SendMessageAsync(new GameMessage
         {
-            Type = MessageType.GameStateSync,
+            Type = MessageType.GameStateSynced,
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             Data = MessagePackSerializer.Serialize(syncData)
         });
     }
 
-    private GameStateSyncData BuildSyncData(GameRoom room)
+    private GameStateSyncedData BuildSyncData(GameRoom room)
     {
-        return new GameStateSyncData
+        return new GameStateSyncedData
         {
             PlayerIds = room.PlayerIds,
             PlayerMoves = room.PlayerMoves,
             GameStatus = room.GameStatus.ToString(),
-            WinnerId = room.WinnerId
+            WinnerId = room.WinnerId,
+            CharactersName = room.CharactersName
         };
     }
     
@@ -945,7 +950,7 @@ public class GameCoordinator
         var syncData = BuildSyncData(room);
         var message = new GameMessage
         {
-            Type = MessageType.GameStateSync,
+            Type = MessageType.GameStateSynced,
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             Data = MessagePackSerializer.Serialize(syncData)
         };
