@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://xa8xyu6q2tib"]
+[gd_scene load_steps=5 format=3 uid="uid://xa8xyu6q2tib"]
 
 [ext_resource type="Script" uid="uid://bgbihn1hbba4h" path="res://scripts/game.gd" id="1_ryrav"]
 [ext_resource type="Script" uid="uid://cjfdgsunpmtvf" path="res://scripts/menus/MainMenu.gd" id="4_eow3j"]
@@ -159,7 +159,6 @@ offset_bottom = 40.0
 script = ExtResource("6_vef74")
 
 [node name="LabelOnlineTitle" type="Label" parent="OnlineMenu"]
-visible = false
 layout_mode = 0
 offset_left = 149.0
 offset_top = 116.0
@@ -169,7 +168,6 @@ theme_override_font_sizes/font_size = 120
 text = "Sélectionnez un mode de jeu :"
 
 [node name="ButtonCreate" type="Button" parent="OnlineMenu"]
-visible = false
 layout_mode = 0
 offset_left = 176.0
 offset_top = 635.0
@@ -199,7 +197,6 @@ theme_override_font_sizes/font_size = 90
 text = "Retour"
 
 [node name="LobbyContainer" type="VBoxContainer" parent="OnlineMenu"]
-visible = false
 layout_mode = 0
 offset_left = 1259.0
 offset_top = 643.0
@@ -207,7 +204,6 @@ offset_right = 1835.0
 offset_bottom = 1356.0
 
 [node name="LabelStatus" type="Label" parent="OnlineMenu"]
-visible = false
 layout_mode = 0
 offset_right = 40.0
 offset_bottom = 23.0

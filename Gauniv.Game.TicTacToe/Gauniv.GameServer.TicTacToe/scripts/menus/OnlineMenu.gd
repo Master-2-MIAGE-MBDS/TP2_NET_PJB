@@ -30,6 +30,7 @@ var joining_game_id = ""
 var is_connecting = false
 var refresh_timer: Timer
 var auto_refresh_enabled = false
+var joining_as_spectator = false
 
 func _ready():
 	# Créer le gestionnaire TCP
@@ -267,10 +268,19 @@ func _on_refresh_timer_timeout():
 		# Arrêter le timer si on n'est plus dans le lobby
 		refresh_timer.stop()
 
-func _on_select_game(game_id: String):
+func _on_select_game(game_id: String, as_spectator: bool = false):
 	joining_game_id = game_id
-	_show_selection_elements()
-	btn_confirm_create.text = "Rejoindre"
+	joining_as_spectator = as_spectator
+	
+	# Si spectateur, rejoindre directement sans sélection
+	if as_spectator:
+		var player_name = GameConfig.player_name if GameConfig.player_name != "" else "Spectateur"
+		var success = await _ensure_player_identity(player_name)
+		if success:
+			_join_game_with_wait(game_id, "bayrou", player_name)  # Personnage par défaut
+	else:
+		_show_selection_elements()
+		btn_confirm_create.text = "Rejoindre"
 
 # === Fonctions de connexion TCP ===
 
@@ -453,7 +463,7 @@ func _handle_game_list(message):
 			btn_style_hover.corner_radius_bottom_left = 5
 			btn_style_hover.corner_radius_bottom_right = 5
 			join_button.add_theme_stylebox_override("hover", btn_style_hover)
-			join_button.connect("pressed", _on_select_game.bind(game_id))
+			join_button.connect("pressed", _on_select_game.bind(game_id, false))
 			vbox.add_child(join_button)
 			
 			game_panel.add_child(vbox)
@@ -487,49 +497,79 @@ func _handle_game_list(message):
 		
 		for game in in_progress_games:
 			var game_panel = PanelContainer.new()
-			game_panel.custom_minimum_size = Vector2(400, 60)
+			game_panel.custom_minimum_size = Vector2(400, 120)
 			var stylebox = StyleBoxFlat.new()
-			stylebox.bg_color = Color(0.3, 0.2, 0.2, 0.6)
-			stylebox.border_color = Color(1.0, 0.5, 0.2, 0.5)
-			stylebox.border_width_left = 3
-			stylebox.border_width_right = 3
-			stylebox.border_width_top = 3
-			stylebox.border_width_bottom = 3
-			stylebox.corner_radius_top_left = 8
-			stylebox.corner_radius_top_right = 8
-			stylebox.corner_radius_bottom_left = 8
-			stylebox.corner_radius_bottom_right = 8
-			stylebox.content_margin_left = 12
-			stylebox.content_margin_right = 12
-			stylebox.content_margin_top = 10
-			stylebox.content_margin_bottom = 10
+			stylebox.bg_color = Color(0.3, 0.2, 0.2, 0.8)
+			stylebox.border_color = Color(1.0, 0.5, 0.2)
+			stylebox.border_width_left = 4
+			stylebox.border_width_right = 4
+			stylebox.border_width_top = 4
+			stylebox.border_width_bottom = 4
+			stylebox.corner_radius_top_left = 10
+			stylebox.corner_radius_top_right = 10
+			stylebox.corner_radius_bottom_left = 10
+			stylebox.corner_radius_bottom_right = 10
+			stylebox.content_margin_left = 15
+			stylebox.content_margin_right = 15
+			stylebox.content_margin_top = 12
+			stylebox.content_margin_bottom = 12
 			game_panel.add_theme_stylebox_override("panel", stylebox)
 			
-			var hbox = HBoxContainer.new()
-			hbox.add_theme_constant_override("separation", 15)
+			var vbox = VBoxContainer.new()
+			vbox.add_theme_constant_override("separation", 8)
 			
+			var game_id = ""
 			var game_name = "Partie sans nom"
 			var player_count = 0
 			
 			if game is Array and game.size() >= 3:
+				game_id = game[0]       # Index 0 = GameId
 				game_name = game[1]     # Index 1 = Name
 				player_count = game[2]  # Index 2 = PlayerCount
 			elif game is Dictionary:
+				game_id = game.get("GameId", "")
 				game_name = game.get("Name", "Partie sans nom")
 				player_count = game.get("PlayerCount", 0)
 			
-			var game_label = Label.new()
-			game_label.text = "🎮 " + game_name + "  |  👥 " + str(player_count) + "/2"
-			game_label.add_theme_font_size_override("font_size", 18)
-			game_label.modulate = Color(0.9, 0.9, 0.9)
-			hbox.add_child(game_label)
+			var name_label = Label.new()
+			name_label.text = "🎮 " + game_name
+			name_label.add_theme_font_size_override("font_size", 22)
+			name_label.add_theme_color_override("font_color", Color.WHITE)
+			vbox.add_child(name_label)
 			
-			game_panel.add_child(hbox)
+			var info_label = Label.new()
+			info_label.text = "👥 " + str(player_count) + "/2 joueurs • En cours"
+			info_label.add_theme_font_size_override("font_size", 17)
+			info_label.modulate = Color(0.9, 0.6, 0.4)
+			vbox.add_child(info_label)
+			
+			var watch_button = Button.new()
+			watch_button.text = "👁 Regarder"
+			watch_button.custom_minimum_size = Vector2(0, 42)
+			watch_button.add_theme_font_size_override("font_size", 18)
+			var btn_style = StyleBoxFlat.new()
+			btn_style.bg_color = Color(0.6, 0.4, 0.2)
+			btn_style.corner_radius_top_left = 5
+			btn_style.corner_radius_top_right = 5
+			btn_style.corner_radius_bottom_left = 5
+			btn_style.corner_radius_bottom_right = 5
+			watch_button.add_theme_stylebox_override("normal", btn_style)
+			var btn_style_hover = StyleBoxFlat.new()
+			btn_style_hover.bg_color = Color(0.8, 0.6, 0.3)
+			btn_style_hover.corner_radius_top_left = 5
+			btn_style_hover.corner_radius_top_right = 5
+			btn_style_hover.corner_radius_bottom_left = 5
+			btn_style_hover.corner_radius_bottom_right = 5
+			watch_button.add_theme_stylebox_override("hover", btn_style_hover)
+			watch_button.connect("pressed", _on_select_game.bind(game_id, true))
+			vbox.add_child(watch_button)
+			
+			game_panel.add_child(vbox)
 			lobby_container.add_child(game_panel)
 			
 			# Espacement
 			var spacer = Control.new()
-			spacer.custom_minimum_size = Vector2(0, 10)
+			spacer.custom_minimum_size = Vector2(0, 12)
 			lobby_container.add_child(spacer)
 
 func _handle_game_joined(message):
@@ -539,7 +579,12 @@ func _handle_game_joined(message):
 	
 	print("[OnlineMenu] Partie rejointe, rôle: ", role)
 	GameConfig.online_game_id = game_data.get("GameId", "")
-	GameConfig.my_player_role = GameConfig.CELL_O
+	
+	# Déterminer le rôle en fonction de ce que le serveur envoie
+	if role == "SPECTATEUR":
+		GameConfig.my_player_role = GameConfig.SPECTATOR
+	else:
+		GameConfig.my_player_role = GameConfig.CELL_O
 	
 	emit_signal("game_joined", game_data)
 

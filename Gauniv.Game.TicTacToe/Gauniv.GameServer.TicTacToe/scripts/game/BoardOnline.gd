@@ -63,6 +63,9 @@ func _setup_tcp_connection():
 func _on_button_click(idx: int, button: Button):
 	if game_ended:
 		return
+	# Les spectateurs ne peuvent pas jouer
+	if GameConfig.my_player_role == GameConfig.SPECTATOR:
+		return
 	if not GameConfig.is_position_free(x_pawns, o_pawns, idx):
 		return
 	if current_player != GameConfig.my_player_role:

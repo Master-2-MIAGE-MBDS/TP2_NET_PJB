@@ -200,7 +200,7 @@ func _update_score_labels():
 	label_score_p2.text = str(score_o)
 
 func _on_restart_pressed():
-	_reset_board()
+	emit_signal("return_to_menu")
 
 func _show_waiting_label():
 	label_waiting.visible = true
