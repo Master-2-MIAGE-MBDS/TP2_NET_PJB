@@ -8,8 +8,6 @@ public enum MessageType
     // Messages client -> serveur
     PlayerConnect = 1,
     PlayerDisconnect = 2,
-    PlayerAction = 3,
-    PlayerReady = 4,
 
     // Lobby / salon
     CreateGame = 12,
@@ -40,7 +38,7 @@ public enum MessageType
     RematchOffered = 113,
     MoveAccepted = 114,
     MoveRejected = 115,
-    GameStateSync = 116,
+    GameStateSynced = 116,
 }
 
 // Message de base pour la communication
@@ -77,6 +75,9 @@ public class CreateGameRequest
 {
     [Key(0)]
     public string GameName { get; set; } = string.Empty;
+
+    [Key(1)]
+    public string Character { get; set; } = string.Empty;
 }
 
 // Demande de rejoindre une partie
@@ -85,39 +86,12 @@ public class JoinGameRequest
 {
     [Key(0)]
     public string GameId { get; set; } = string.Empty;
+
+    [Key(1)]
+    public string Character { get; set; } = string.Empty;
 }
 
-/// <summary>
-/// Données d'action d'un joueur
-/// </summary>
-[MessagePackObject]
-public class PlayerActionData
-{
-    [Key(0)]
-    public string ActionType { get; set; } = string.Empty;
-    
-    [Key(1)]
-    public Dictionary<string, object>? Parameters { get; set; }
-}
 
-/// <summary>
-/// État du jeu envoyé aux clients
-/// </summary>
-[MessagePackObject]
-public class GameStateData
-{
-    [Key(0)]
-    public string GameId { get; set; } = string.Empty;
-    
-    [Key(1)]
-    public List<PlayerInfo> Players { get; set; } = new();
-    
-    [Key(2)]
-    public string Status { get; set; } = string.Empty;
-    
-    [Key(3)]
-    public Dictionary<string, object>? CustomData { get; set; }
-}
 
 /// <summary>
 /// Résumé d'une partie pour la liste/lobby
@@ -177,24 +151,6 @@ public class GameJoinedData
     public string Role { get; set; } = string.Empty;
 }
 
-/// <summary>
-/// Informations sur un joueur
-/// </summary>
-[MessagePackObject]
-public class PlayerInfo
-{
-    [Key(0)]
-    public string PlayerId { get; set; } = string.Empty;
-    
-    [Key(1)]
-    public string PlayerName { get; set; } = string.Empty;
-    
-    [Key(2)]
-    public bool IsReady { get; set; }
-    
-    [Key(3)]
-    public bool IsConnected { get; set; }
-}
 
 /// <summary>
 /// Message d'erreur
@@ -248,7 +204,7 @@ public class MoveRejectedData
 
 // État complet du jeu pour synchronisation
 [MessagePackObject]
-public class GameStateSyncData
+public class GameStateSyncedData
 {
     [Key(0)]
     public List<string> PlayerIds { get; set; } = new(); // Liste ordonnée des joueurs
@@ -261,6 +217,9 @@ public class GameStateSyncData
 
     [Key(3)]
     public string? WinnerId { get; set; } // null si pas de gagnant
+
+    [Key(4)]
+    public Dictionary<string, string> CharactersName { get; set; } = new(); // playerId -> character name
 }
 
 /// <summary>
