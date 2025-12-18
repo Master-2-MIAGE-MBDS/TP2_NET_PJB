@@ -53,6 +53,7 @@
     </div>
 </form>
 
+<!-- Alerte si pas connecté -->
 @if (Model.OnlyOwned && !Model.IsAuthenticated)
 {
     <div class="alert alert-warning">Vous n'êtes pas connecté. Le filtre "Jeux possédés" ne sera pas appliqué et tous les jeux sont affichés.</div>
