@@ -28,8 +28,8 @@
     </div>
     <div class="col-md-2">
         <label for="maxPrice" class="form-label">Prix max</label>
-        <input type="number" step="1" min="0" max="@Model.GlobalMaxPrice.ToString()" id="maxPrice" name="maxPrice"
-               class="form-control" value="@(Model.MaxPrice?.ToString() ?? string.Empty)"/>
+        <input type="number" step="1" min="0" max="@(Model.GlobalMaxPrice.HasValue ? Model.GlobalMaxPrice.Value.ToString("0") : string.Empty)" id="maxPrice" name="maxPrice"
+               class="form-control" value="@(Model.MaxPrice.HasValue ? Model.MaxPrice.Value.ToString("0") : string.Empty)"/>
     </div>
     <div class="col-md-3">
         <label for="search" class="form-label">Rechercher par nom</label>
