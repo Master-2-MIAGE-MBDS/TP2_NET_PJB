@@ -3,6 +3,7 @@ extends Node
 const CELL_EMPTY = ""
 const CELL_X = "X"
 const CELL_O = "O"
+const SPECTATOR = "SPECTATEUR"
 const MAX_PIECES = 3
 
 const WIN_PATTERNS = [

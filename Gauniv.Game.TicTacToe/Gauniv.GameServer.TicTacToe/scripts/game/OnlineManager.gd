@@ -72,6 +72,8 @@ func _on_message_received(message):
 			_handle_game_won(message)
 		GameMessages.MessageType.GameLoose:
 			_handle_game_lost(message)
+		GameMessages.MessageType.GameEnded:
+			_handle_game_ended(message)
 		GameMessages.MessageType.GameStarted:
 			_handle_game_started(message)
 		GameMessages.MessageType.PlayerJoined:
@@ -191,6 +193,12 @@ func _handle_game_lost(message):
 	var data = GameMessages.parse_game_won(message)  # Même structure
 	print("[OnlineManager] Défaite!")
 	emit_signal("game_lost", data)
+
+func _handle_game_ended(message):
+	var data = GameMessages.parse_game_won(message)  # Même structure que GameWon
+	print("[OnlineManager] Partie terminée (GameEnded) - Winner: ", data.get("WinnerName", ""))
+	# Demander une synchronisation finale pour avoir l'état complet
+	_request_sync_state()
 
 func _handle_game_started(message):
 	print("[OnlineManager] Partie démarrée!")
