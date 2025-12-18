@@ -220,6 +220,9 @@ public class GameStateSyncedData
 
     [Key(4)]
     public Dictionary<string, string> CharactersName { get; set; } = new(); // playerId -> character name
+
+    [Key(5)]
+    public Dictionary<string, string> PlayerNames { get; set; } = new(); // playerId -> pseudo
 }
 
 /// <summary>
