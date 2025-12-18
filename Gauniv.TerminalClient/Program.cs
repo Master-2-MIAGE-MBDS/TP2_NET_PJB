@@ -137,6 +137,8 @@ public class GameSummary
     [Key(1)] public string Name { get; set; } = string.Empty;
     [Key(2)] public int PlayerCount { get; set; }
     [Key(3)] public int MaxPlayers { get; set; }
+    [Key(4)] public string Status { get; set; } = string.Empty;
+    [Key(5)] public int SpectatorCount { get; set; }
 }
 
 [MessagePackObject]
@@ -150,6 +152,15 @@ public class GameJoinedData
 {
     [Key(0)] public GameSummary Game { get; set; } = new();
     [Key(1)] public string Role { get; set; } = string.Empty;
+}
+
+[MessagePackObject]
+public class GameStateSyncData
+{
+    [Key(0)] public List<string> PlayerIds { get; set; } = new();
+    [Key(1)] public Dictionary<string, int?[]> PlayerMoves { get; set; } = new();
+    [Key(2)] public string GameStatus { get; set; } = string.Empty;
+    [Key(3)] public string? WinnerId { get; set; }
 }
 
 [MessagePackObject]
@@ -181,6 +192,7 @@ class Program
     private static string? _myPlayerId;
     private static string? _myPlayerName;
     private static string? _currentGameId;
+    private static bool _isSpectator = false;
 
     private static ClientState _state = ClientState.Connecting;
     private static List<GameSummary> _availableGames = new();
@@ -291,9 +303,11 @@ class Program
                 MoveAcceptedData moveData = MessagePackSerializer
                     .Deserialize<MoveAcceptedData>(msg.Data!);
                 PrintInfo($"Le serveur a enregistré le mouvement à la position: {moveData.Position}");
-
-                await Task.Delay(5000);
-                await SendGameMovesAsync();
+                if (!_isSpectator)
+                {
+                    await Task.Delay(5000);
+                    await SendGameMovesAsync();
+                }
                 break;
             
             case MessageType.MoveAccepted:
@@ -308,8 +322,8 @@ class Program
                 MoveRejectedData rejectedData = MessagePackSerializer
                     .Deserialize<MoveRejectedData>(msg.Data!);
                 PrintError($"Raison: {rejectedData.Reason}, Position: {rejectedData.Position}");
-
-                await SendGameMovesAsync();
+                if (!_isSpectator)
+                    await SendGameMovesAsync();
                 break;
 
             case MessageType.GameCreated:
@@ -320,11 +334,13 @@ class Program
                 break;
 
             case MessageType.GameJoined:
-                _currentGameId =
-                    MessagePackSerializer.Deserialize<GameJoinedData>(msg.Data!).Game.GameId;
-                PrintSuccess("Room rejointe");
+                var joined = MessagePackSerializer.Deserialize<GameJoinedData>(msg.Data!);
+                _currentGameId = joined.Game.GameId;
+                _isSpectator = string.Equals(joined.Role, "SPECTATEUR", StringComparison.OrdinalIgnoreCase);
+                PrintSuccess($"Room rejointe ({joined.Game.Name}) - Rôle: {joined.Role}, Statut: {joined.Game.Status}, Spectateurs: {joined.Game.SpectatorCount}");
                 _state = ClientState.InGame;
-                await SendGameMovesAsync();
+                if (!_isSpectator)
+                    await SendGameMovesAsync();
                 break;
 
             case MessageType.ServerError:
@@ -355,7 +371,9 @@ class Program
                 break;
 
             case MessageType.GameStateSync:
-                PrintInfo("État du jeu synchronisé.");
+                var sync = MessagePackSerializer.Deserialize<GameStateSyncData>(msg.Data!);
+                PrintInfo($"Sync: statut={sync.GameStatus}, joueurs={sync.PlayerIds.Count}");
+                PrintFullBoard(sync);
                 break;
 
             default:
@@ -458,6 +476,36 @@ class Program
         );
     }
 
+    private static void PrintFullBoard(GameStateSyncData sync)
+    {
+        Console.WriteLine("Grille (placements actuels):");
+        var grid = new string[3,3];
+        for (int r = 0; r < 3; r++)
+            for (int c = 0; c < 3; c++)
+                grid[r, c] = ".";
+
+        for (int i = 0; i < sync.PlayerIds.Count; i++)
+        {
+            var pid = sync.PlayerIds[i];
+            if (!sync.PlayerMoves.TryGetValue(pid, out var moves) || moves == null) continue;
+            var mark = (i + 1).ToString();
+            foreach (var m in moves)
+            {
+                if (m is int pos)
+                {
+                    int r = pos / 3;
+                    int c = pos % 3;
+                    grid[r, c] = mark;
+                }
+            }
+        }
+
+        for (int r = 0; r < 3; r++)
+        {
+            Console.WriteLine($"{grid[r,0]} {grid[r,1]} {grid[r,2]}");
+        }
+    }
+
 
     private static void DisplayGames()
     {
@@ -465,7 +513,7 @@ class Program
         for (int i = 0; i < _availableGames.Count; i++)
         {
             var g = _availableGames[i];
-            Console.WriteLine($"[{i}] {g.Name} ({g.PlayerCount}/{g.MaxPlayers})");
+            Console.WriteLine($"[{i}] {g.Name} ({g.PlayerCount}/{g.MaxPlayers})  status={g.Status}  spectators={g.SpectatorCount}");
         }
     }
 
