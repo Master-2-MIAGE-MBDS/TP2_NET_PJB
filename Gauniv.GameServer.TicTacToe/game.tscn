@@ -1,0 +1,383 @@
+[gd_scene load_steps=8 format=3 uid="uid://xa8xyu6q2tib"]
+
+[ext_resource type="Script" uid="uid://bgbihn1hbba4h" path="res://scripts/game.gd" id="1_ryrav"]
+[ext_resource type="Script" uid="uid://i4sxfcx8wrae" path="res://scripts/game/Board.gd" id="2_eow3j"]
+[ext_resource type="Texture2D" uid="uid://bs2q8griio5mc" path="res://assets/meluche/meluche.png" id="2_feb5d"]
+[ext_resource type="Texture2D" uid="uid://bbevk7u6v3isk" path="res://assets/lepen/lepen.png" id="3_fc0e3"]
+[ext_resource type="Script" uid="uid://cjfdgsunpmtvf" path="res://scripts/menus/MainMenu.gd" id="4_eow3j"]
+[ext_resource type="Script" uid="uid://chesh75bskg8a" path="res://scripts/menus/SelectionMenu.gd" id="5_j5wjh"]
+[ext_resource type="Script" uid="uid://8v5j2cdyxber" path="res://scripts/menus/OnlineMenu.gd" id="6_vef74"]
+
+[node name="Game" type="Node2D"]
+script = ExtResource("1_ryrav")
+
+[node name="Board" type="Node2D" parent="."]
+visible = false
+script = ExtResource("2_eow3j")
+
+[node name="ScoreP1" type="VBoxContainer" parent="Board"]
+offset_right = 380.0
+offset_bottom = 470.0
+
+[node name="ImageP1" type="TextureRect" parent="Board/ScoreP1"]
+layout_mode = 2
+texture = ExtResource("2_feb5d")
+
+[node name="LabelScoreP1" type="Label" parent="Board/ScoreP1"]
+custom_minimum_size = Vector2(200, 100)
+layout_mode = 2
+theme_override_font_sizes/font_size = 150
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ScoreP2" type="VBoxContainer" parent="Board"]
+offset_left = 1678.0
+offset_top = 5.0
+offset_right = 1998.0
+offset_bottom = 529.0
+
+[node name="ImageP2" type="TextureRect" parent="Board/ScoreP2"]
+layout_mode = 2
+texture = ExtResource("3_fc0e3")
+
+[node name="LabelScoreP2" type="Label" parent="Board/ScoreP2"]
+custom_minimum_size = Vector2(200, 100)
+layout_mode = 2
+theme_override_font_sizes/font_size = 150
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GridContainer" type="GridContainer" parent="Board"]
+offset_left = 419.0
+offset_top = 380.0
+offset_right = 1627.0
+offset_bottom = 1588.0
+columns = 3
+
+[node name="Button" type="Button" parent="Board/GridContainer"]
+custom_minimum_size = Vector2(400, 400)
+layout_mode = 2
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 120
+icon_alignment = 1
+
+[node name="Button2" type="Button" parent="Board/GridContainer"]
+custom_minimum_size = Vector2(400, 400)
+layout_mode = 2
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 120
+icon_alignment = 1
+
+[node name="Button3" type="Button" parent="Board/GridContainer"]
+custom_minimum_size = Vector2(400, 400)
+layout_mode = 2
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 120
+icon_alignment = 1
+
+[node name="Button4" type="Button" parent="Board/GridContainer"]
+custom_minimum_size = Vector2(400, 400)
+layout_mode = 2
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 120
+icon_alignment = 1
+
+[node name="Button5" type="Button" parent="Board/GridContainer"]
+custom_minimum_size = Vector2(400, 400)
+layout_mode = 2
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 120
+icon_alignment = 1
+
+[node name="Button6" type="Button" parent="Board/GridContainer"]
+custom_minimum_size = Vector2(400, 400)
+layout_mode = 2
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 120
+icon_alignment = 1
+
+[node name="Button7" type="Button" parent="Board/GridContainer"]
+custom_minimum_size = Vector2(400, 400)
+layout_mode = 2
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 120
+icon_alignment = 1
+
+[node name="Button8" type="Button" parent="Board/GridContainer"]
+custom_minimum_size = Vector2(400, 400)
+layout_mode = 2
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 120
+icon_alignment = 1
+
+[node name="Button9" type="Button" parent="Board/GridContainer"]
+custom_minimum_size = Vector2(400, 400)
+layout_mode = 2
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 120
+icon_alignment = 1
+
+[node name="ButtonRestart" type="Button" parent="Board"]
+offset_left = 573.0
+offset_top = 39.0
+offset_right = 1439.0
+offset_bottom = 326.0
+theme_override_font_sizes/font_size = 125
+text = "Rejouer"
+
+[node name="AudioPlayer" type="AudioStreamPlayer2D" parent="Board"]
+
+[node name="ButtonBack" type="Button" parent="Board"]
+offset_left = 745.0
+offset_top = 1675.0
+offset_right = 1297.0
+offset_bottom = 1846.0
+theme_override_font_sizes/font_size = 90
+text = "Retour"
+
+[node name="MainMenu" type="Control" parent="."]
+visible = false
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("4_eow3j")
+
+[node name="LabelTitle" type="Label" parent="MainMenu"]
+layout_mode = 0
+offset_left = 149.0
+offset_top = 116.0
+offset_right = 1875.0
+offset_bottom = 281.0
+theme_override_font_sizes/font_size = 120
+text = "Sélectionnez un mode de jeu :"
+
+[node name="ButtonOnline" type="Button" parent="MainMenu"]
+layout_mode = 0
+offset_left = 176.0
+offset_top = 635.0
+offset_right = 728.0
+offset_bottom = 806.0
+theme_override_font_sizes/font_size = 90
+text = "En ligne"
+
+[node name="ButtonLocal" type="Button" parent="MainMenu"]
+layout_mode = 0
+offset_left = 1265.0
+offset_top = 651.0
+offset_right = 1817.0
+offset_bottom = 822.0
+theme_override_font_sizes/font_size = 90
+text = "En local"
+
+[node name="SelectionMenu" type="Control" parent="."]
+visible = false
+layout_mode = 3
+anchors_preset = 0
+offset_left = 416.0
+offset_top = 383.0
+offset_right = 1625.0
+offset_bottom = 1592.0
+script = ExtResource("5_j5wjh")
+
+[node name="LabelChoose" type="Label" parent="SelectionMenu"]
+layout_mode = 0
+offset_left = -74.0
+offset_top = -290.0
+offset_right = 1271.0
+offset_bottom = -103.0
+theme_override_font_sizes/font_size = 100
+text = "Choisissez votre camp !"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="LabelP1" type="Label" parent="SelectionMenu"]
+layout_mode = 0
+offset_left = 25.0
+offset_top = -117.0
+offset_right = 381.0
+offset_bottom = 22.0
+theme_override_font_sizes/font_size = 80
+text = "Joueur 1"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SelectionP1" type="HBoxContainer" parent="SelectionMenu"]
+layout_mode = 0
+offset_left = 4.0
+offset_top = 71.0
+offset_right = 556.0
+offset_bottom = 471.0
+
+[node name="ButtonLeftP1" type="Button" parent="SelectionMenu/SelectionP1"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_vertical = 4
+text = "<"
+
+[node name="ImageSelectP1" type="TextureRect" parent="SelectionMenu/SelectionP1"]
+layout_mode = 2
+
+[node name="ButtonRightP1" type="Button" parent="SelectionMenu/SelectionP1"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_vertical = 4
+text = ">"
+
+[node name="LabelP2" type="Label" parent="SelectionMenu"]
+layout_mode = 0
+offset_left = 859.0
+offset_top = -95.0
+offset_right = 1180.0
+offset_bottom = 128.0
+theme_override_font_sizes/font_size = 80
+text = "Joueur 2
+"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SelectionP2" type="HBoxContainer" parent="SelectionMenu"]
+layout_mode = 0
+offset_left = 809.0
+offset_top = 76.0
+offset_right = 1377.0
+offset_bottom = 476.0
+
+[node name="ButtonLeftP2" type="Button" parent="SelectionMenu/SelectionP2"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_vertical = 4
+text = "<"
+
+[node name="ImageSelectP2" type="TextureRect" parent="SelectionMenu/SelectionP2"]
+layout_mode = 2
+
+[node name="ButtonRightP2" type="Button" parent="SelectionMenu/SelectionP2"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_vertical = 4
+text = ">"
+
+[node name="ButtonStart" type="Button" parent="SelectionMenu"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 1035.0
+offset_right = 1212.0
+offset_bottom = 1248.0
+theme_override_font_sizes/font_size = 150
+text = "Lancer le débat !"
+
+[node name="ButtonBack" type="Button" parent="SelectionMenu"]
+layout_mode = 0
+offset_left = 333.0
+offset_top = 1288.0
+offset_right = 885.0
+offset_bottom = 1459.0
+theme_override_font_sizes/font_size = 90
+text = "Retour"
+
+[node name="OnlineMenu" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("6_vef74")
+
+[node name="LabelOnlineTitle" type="Label" parent="OnlineMenu"]
+visible = false
+layout_mode = 0
+offset_left = 149.0
+offset_top = 116.0
+offset_right = 1875.0
+offset_bottom = 281.0
+theme_override_font_sizes/font_size = 120
+text = "Sélectionnez un mode de jeu :"
+
+[node name="ButtonCreate" type="Button" parent="OnlineMenu"]
+visible = false
+layout_mode = 0
+offset_left = 176.0
+offset_top = 635.0
+offset_right = 728.0
+offset_bottom = 806.0
+theme_override_font_sizes/font_size = 90
+text = "Créer partie"
+
+[node name="ButtonRefresh" type="Button" parent="OnlineMenu"]
+visible = false
+layout_mode = 0
+offset_left = 1265.0
+offset_top = 651.0
+offset_right = 1817.0
+offset_bottom = 822.0
+theme_override_font_sizes/font_size = 90
+text = "Rafrâchir"
+
+[node name="ButtonBack" type="Button" parent="OnlineMenu"]
+visible = false
+layout_mode = 0
+offset_left = 713.0
+offset_top = 1599.0
+offset_right = 1265.0
+offset_bottom = 1770.0
+theme_override_font_sizes/font_size = 90
+text = "Retour"
+
+[node name="LobbyContainer" type="VBoxContainer" parent="OnlineMenu"]
+visible = false
+layout_mode = 0
+offset_left = 1259.0
+offset_top = 643.0
+offset_right = 1835.0
+offset_bottom = 1356.0
+
+[node name="LabelStatus" type="Label" parent="OnlineMenu"]
+visible = false
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+
+[node name="SelectionContainer" type="Control" parent="OnlineMenu"]
+custom_minimum_size = Vector2(1600, 1600)
+anchors_preset = 0
+offset_left = 194.0
+offset_top = 198.0
+offset_right = 1794.0
+offset_bottom = 1798.0
+
+[node name="HBoxContainer" type="HBoxContainer" parent="OnlineMenu/SelectionContainer"]
+layout_mode = 0
+offset_left = 505.0
+offset_top = 210.0
+offset_right = 728.0
+offset_bottom = 806.0
+
+[node name="SelectionP1" type="HBoxContainer" parent="OnlineMenu/SelectionContainer/HBoxContainer"]
+layout_mode = 2
+
+[node name="ButtonLeft" type="Button" parent="OnlineMenu/SelectionContainer/HBoxContainer/SelectionP1"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_vertical = 4
+text = "<"
+
+[node name="ImageSelect" type="TextureRect" parent="OnlineMenu/SelectionContainer/HBoxContainer/SelectionP1"]
+layout_mode = 2
+
+[node name="ButtonRight" type="Button" parent="OnlineMenu/SelectionContainer/HBoxContainer/SelectionP1"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_vertical = 4
+text = ">"
+
+[node name="ButtonConfirmCreate" type="Button" parent="OnlineMenu/SelectionContainer"]
+custom_minimum_size = Vector2(500, 150)
+layout_mode = 0
+offset_left = 490.0
+offset_top = 1077.0
+offset_right = 1062.0
+offset_bottom = 1227.0
+size_flags_horizontal = 0
+size_flags_vertical = 0
+theme_override_font_sizes/font_size = 75
+text = "Lancer la partie"
