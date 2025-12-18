@@ -1,0 +1,602 @@
+using System.Net.Sockets;
+using MessagePack;
+
+namespace Gauniv.TerminalClient;
+
+#region Messages & DTOs
+
+
+
+public enum MessageType
+{
+    // Messages client -> serveur
+    PlayerConnect = 1,
+    PlayerDisconnect = 2,
+
+    // Lobby / salon
+    CreateGame = 12,
+    ListGames = 13,
+    JoinGame = 14,
+    
+    // Messages spécifiques Morpion
+    MakeMove = 10,
+    SyncGameState = 15,
+    
+    // Messages serveur -> client
+    ServerWelcome = 100,
+    ServerError = 101,
+    GameState = 102,
+    PlayerJoined = 103,
+    PlayerLeft = 104,
+    GameStarted = 105,
+    GameEnded = 106,
+    GameCreated = 107,
+    GameList = 108,
+    GameJoined = 109,
+    
+    // Messages spécifiques Morpion serveur
+    MoveMade = 110,
+    GameWon = 111,
+    GameLoose = 112,
+    RematchOffered = 113,
+    MoveAccepted = 114,
+    MoveRejected = 115,
+    GameStateSynced = 116,
+}
+
+
+[MessagePackObject]
+public class GameMessage
+{
+    [Key(0)] public MessageType Type { get; set; }
+    [Key(1)] public string? PlayerId { get; set; }
+    [Key(2)] public long Timestamp { get; set; }
+    [Key(3)] public byte[]? Data { get; set; }
+}
+
+[MessagePackObject]
+public class MakeMoveData
+{
+    [Key(0)]
+    public int Position { get; set; } // Position 0-8 sur la grille
+}
+
+[MessagePackObject]
+public class MoveAcceptedData
+{
+    [Key(0)]
+    public string PlayerId { get; set; } = string.Empty;
+    
+    [Key(1)]
+    public int Position { get; set; }
+    
+}
+
+/// <summary>
+/// Réponse de rejet de coup
+/// </summary>
+[MessagePackObject]
+public class MoveRejectedData
+{
+    [Key(0)]
+    public string Reason { get; set; } = string.Empty;
+    
+    [Key(1)]
+    public int Position { get; set; }
+}
+
+/// <summary>
+/// Message de victoire
+/// </summary>
+[MessagePackObject]
+public class GameWonData
+{
+    [Key(0)]
+    public string WinnerId { get; set; } = string.Empty;
+    
+    [Key(1)]
+    public string WinnerName { get; set; } = string.Empty;
+    
+    [Key(2)]
+    public int[] WinningPositions { get; set; } = Array.Empty<int>();
+}
+
+
+[MessagePackObject]
+public class PlayerConnectData
+{
+    [Key(0)] public string PlayerName { get; set; } = string.Empty;
+}
+
+[MessagePackObject]
+public class ErrorData
+{
+    [Key(0)] public string ErrorCode { get; set; } = string.Empty;
+    [Key(1)] public string Message { get; set; } = string.Empty;
+}
+
+[MessagePackObject]
+public class CreateGameRequest
+{
+    [Key(0)] public string GameName { get; set; } = string.Empty;
+    [Key(1)] public string Character { get; set; } = string.Empty;
+}
+
+// Demande de rejoindre une partie
+[MessagePackObject]
+public class JoinGameRequest
+{
+    [Key(0)]
+    public string GameId { get; set; } = string.Empty;
+
+    [Key(1)]
+    public string Character { get; set; } = string.Empty;
+}
+
+[MessagePackObject]
+public class GameSummary
+{
+    [Key(0)] public string GameId { get; set; } = string.Empty;
+    [Key(1)] public string Name { get; set; } = string.Empty;
+    [Key(2)] public int PlayerCount { get; set; }
+    [Key(3)] public int MaxPlayers { get; set; }
+    [Key(4)] public string Status { get; set; } = string.Empty;
+    [Key(5)] public int SpectatorCount { get; set; }
+}
+
+[MessagePackObject]
+public class GameCreatedData
+{
+    [Key(0)] public GameSummary Game { get; set; } = new();
+}
+
+[MessagePackObject]
+public class GameJoinedData
+{
+    [Key(0)] public GameSummary Game { get; set; } = new();
+    [Key(1)] public string Role { get; set; } = string.Empty;
+}
+
+[MessagePackObject]
+public class GameStateSyncedData
+{
+    [Key(0)]
+    public List<string> PlayerIds { get; set; } = new(); // Liste ordonnée des joueurs
+
+    [Key(1)]
+    public Dictionary<string, int?[]> PlayerMoves { get; set; } = new(); // playerId -> [pos0, pos1, pos2]
+
+    [Key(2)]
+    public string GameStatus { get; set; } = "IN_PROGRESS"; // IN_PROGRESS, FINISHED, WAITING
+
+    [Key(3)]
+    public string? WinnerId { get; set; } // null si pas de gagnant
+
+    [Key(4)]
+    public Dictionary<string, string> CharactersName { get; set; } = new(); // playerId -> character name
+}
+
+[MessagePackObject]
+public class GameListResponse
+{
+    [Key(0)] public List<GameSummary> Games { get; set; } = new();
+}
+
+#endregion
+
+#region Client State
+
+enum ClientState
+{
+    Connecting,
+    Menu,
+    WaitingServer,
+    WaitingInRoom,
+    InGame,
+    Disconnected
+}
+
+
+#endregion
+
+class Program
+{
+    private static NetworkStream? _stream;
+    private static string? _myPlayerId;
+    private static string? _myPlayerName;
+    private static string? _currentGameId;
+    private static bool _isSpectator = false;
+    private static List<string> _lastPlayerIds = new();
+    private static Dictionary<string, int?[]> _lastPlayerMoves = new();
+    private static Dictionary<string, string> CharacterName = new();
+
+    private static ClientState _state = ClientState.Connecting;
+    private static List<GameSummary> _availableGames = new();
+    private static TaskCompletionSource<bool> _listGamesReceived = new();
+    private static Random _random = new();
+
+    static async Task Main(string[] args)
+    {
+        string host = "localhost";
+        int port = 7777;
+        string name = args.Length > 0 ? args[0] : $"Player-{DateTime.Now.Ticks % 1000}";
+
+        _myPlayerName = name;
+        PrintHeader();
+
+        using var client = new TcpClient();
+        await client.ConnectAsync(host, port);
+        _stream = client.GetStream();
+
+        var cts = new CancellationTokenSource();
+        _ = ReceiveLoopAsync(cts.Token);
+
+        await SendAsync(new GameMessage
+        {
+            Type = MessageType.PlayerConnect,
+            Data = MessagePackSerializer.Serialize(new PlayerConnectData { PlayerName = name })
+        });
+
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            _state = ClientState.Disconnected;
+            cts.Cancel();
+        };
+
+        while (_state != ClientState.Disconnected)
+            await Task.Delay(500);
+    }
+
+    #region Network
+
+    private static async Task SendAsync(GameMessage msg)
+    {
+        if (_stream == null) return;
+
+        msg.Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var data = MessagePackSerializer.Serialize(msg);
+        var len = BitConverter.GetBytes(data.Length);
+
+        await _stream.WriteAsync(len);
+        await _stream.WriteAsync(data);
+        await _stream.FlushAsync();
+    }
+
+    private static async Task ReceiveLoopAsync(CancellationToken ct)
+    {
+        var lenBuf = new byte[4];
+
+        while (!ct.IsCancellationRequested)
+        {
+            await ReadExactAsync(_stream!, lenBuf, 4, ct);
+            int len = BitConverter.ToInt32(lenBuf);
+
+            var buf = new byte[len];
+            await ReadExactAsync(_stream!, buf, len, ct);
+
+            var msg = MessagePackSerializer.Deserialize<GameMessage>(buf);
+            await HandleMessageAsync(msg);
+        }
+    }
+
+    private static async Task ReadExactAsync(NetworkStream stream, byte[] buffer, int length, CancellationToken ct)
+    {
+        int read = 0;
+        while (read < length)
+            read += await stream.ReadAsync(buffer.AsMemory(read, length - read), ct);
+    }
+
+    #endregion
+
+    #region Message Handling
+
+    private static async Task HandleMessageAsync(GameMessage msg)
+    {
+        PrintInfo($"Reçu: {msg.Type}");
+
+        switch (msg.Type)
+        {
+            case MessageType.ServerWelcome:
+                _myPlayerId = msg.PlayerId;
+                _state = ClientState.Menu;
+                _ = RunStateLoopAsync();
+                break;
+
+            case MessageType.GameList:
+                var list = MessagePackSerializer
+                    .Deserialize<GameListResponse>(msg.Data!);
+
+                _availableGames = list.Games;
+
+                DisplayGames();
+
+                _state = ClientState.Menu;
+                break;
+
+            case MessageType.MoveMade:
+                PrintInfo("Mouvement effectué");
+                MoveAcceptedData moveData = MessagePackSerializer
+                    .Deserialize<MoveAcceptedData>(msg.Data!);
+                PrintInfo($"Le serveur a enregistré le mouvement à la position: {moveData.Position}");
+                if (!_isSpectator)
+                {
+                    await Task.Delay(5000);
+                    await SendGameMovesAsync();
+                }
+                break;
+            
+            case MessageType.MoveAccepted:
+                PrintSuccess("Mouvement accepté par le serveur");
+                MoveAcceptedData acceptedData = MessagePackSerializer
+                    .Deserialize<MoveAcceptedData>(msg.Data!);
+                PrintInfo($"Le serveur a enregistré le mouvement à la position: {acceptedData.Position}");
+                break;
+            
+            case MessageType.MoveRejected:
+                PrintError("Mouvement rejeté par le serveur");
+                MoveRejectedData rejectedData = MessagePackSerializer
+                    .Deserialize<MoveRejectedData>(msg.Data!);
+                PrintError($"Raison: {rejectedData.Reason}, Position: {rejectedData.Position}");
+                if (!_isSpectator)
+                    await SendGameMovesAsync();
+                break;
+
+            case MessageType.GameCreated:
+                _currentGameId =
+                    MessagePackSerializer.Deserialize<GameCreatedData>(msg.Data!).Game.GameId;
+                PrintSuccess("Room créée");
+                _state = ClientState.WaitingInRoom;
+                break;
+
+            case MessageType.GameJoined:
+                var joined = MessagePackSerializer.Deserialize<GameJoinedData>(msg.Data!);
+                _currentGameId = joined.Game.GameId;
+                _isSpectator = string.Equals(joined.Role, "SPECTATEUR", StringComparison.OrdinalIgnoreCase);
+                PrintSuccess($"Room rejointe ({joined.Game.Name}) - Rôle: {joined.Role}, Statut: {joined.Game.Status}, Spectateurs: {joined.Game.SpectatorCount}");
+                _state = ClientState.InGame;
+                if (!_isSpectator)
+                    await SendGameMovesAsync();
+                break;
+
+            case MessageType.ServerError:
+                var err = MessagePackSerializer.Deserialize<ErrorData>(msg.Data!);
+                PrintError(err.Message);
+                _state = ClientState.Menu;
+                break;
+
+            case MessageType.GameEnded:
+                GameWonData winData = MessagePackSerializer
+                    .Deserialize<GameWonData>(msg.Data!);
+                PrintInfo($"La partie est terminée. Le gagnant est: {winData.WinnerName}");
+                PrintFinalBoard(winData);
+                _state = ClientState.Menu;
+                break;
+
+            case MessageType.GameWon:
+                GameWonData gameWonData = MessagePackSerializer
+                    .Deserialize<GameWonData>(msg.Data!);
+                PrintSuccess($"Vous avez gagné la partie! Félicitations {gameWonData.WinnerName}!");
+                _state = ClientState.Menu;
+                break;
+            
+            case MessageType.GameLoose:
+                GameWonData gameLooseData = MessagePackSerializer
+                    .Deserialize<GameWonData>(msg.Data!);
+                PrintError($"Vous avez perdu la partie. Le gagnant est {gameLooseData.WinnerName}.");
+                _state = ClientState.Menu;
+                break;
+
+            case MessageType.GameStateSynced:
+                var sync = MessagePackSerializer.Deserialize<GameStateSyncedData>(msg.Data!);
+                // Cache l'état courant pour affichage final si nécessaire
+                _lastPlayerIds = sync.PlayerIds ?? new List<string>();
+                _lastPlayerMoves = sync.PlayerMoves ?? new Dictionary<string, int?[]>();
+                PrintInfo($"Sync: statut={sync.GameStatus}, joueurs={_lastPlayerIds.Count}");
+                PrintFullBoard(sync);
+                break;
+
+            default:
+                PrintError($"Message inconnu: {msg.Type}");
+                break;
+        }
+    }
+
+    #endregion
+
+    #region State Machine
+
+    private static async Task RunStateLoopAsync()
+    {
+        while (_state != ClientState.Disconnected)
+        {
+            switch (_state)
+            {
+                case ClientState.Menu:
+                    await ShowMenuOnceAsync();
+                    break;
+                
+                case ClientState.WaitingServer:
+                case ClientState.WaitingInRoom:
+                case ClientState.InGame:
+                    await Task.Delay(2000);
+                    break;
+            }
+        }
+    }
+
+    private static async Task ShowMenuOnceAsync()
+    {
+        Console.WriteLine("\n[c] Créer  [l] Lister  [j] Rejoindre  [q] Quitter");
+        Console.Write("> ");
+        var choice = Console.ReadLine()?.ToLower();
+
+        switch (choice)
+        {
+            case "c":
+                Console.Write("Nom room: ");
+                string name = Console.ReadLine() ?? "Room";
+
+                Console.Write("Charactère (X/O): ");
+                string character = Console.ReadLine() ?? "X";
+
+                _state = ClientState.WaitingInRoom;
+                await SendAsync(new GameMessage
+                {
+                    Type = MessageType.CreateGame,
+                    PlayerId = _myPlayerId,
+                    Data = MessagePackSerializer.Serialize(new CreateGameRequest { GameName = name, Character = character })
+                });
+                break;
+
+            case "l":
+                _state = ClientState.WaitingServer;
+
+                _listGamesReceived = new TaskCompletionSource<bool>();
+
+                await SendAsync(new GameMessage
+                {
+                    Type = MessageType.ListGames,
+                    PlayerId = _myPlayerId
+                });
+                break;
+
+            case "j":
+                if (_availableGames.Count == 0) break;
+                Console.Write("Index: ");
+                if (int.TryParse(Console.ReadLine(), out int i))
+                {
+                    Console.Write("Charactère (X/O): ");
+                    string charac = Console.ReadLine() ?? "O";
+                    _state = ClientState.WaitingInRoom;
+                    await SendAsync(new GameMessage
+                    {
+                        Type = MessageType.JoinGame,
+                        PlayerId = _myPlayerId,
+                        Data = MessagePackSerializer.Serialize(
+                            new JoinGameRequest { GameId = _availableGames[i].GameId, Character = charac })
+                    });
+                }
+                break;
+
+            case "q":
+                _state = ClientState.Disconnected;
+                break;
+        }
+    }
+
+    #endregion
+
+    #region Game Logic
+    private static async Task SendGameMovesAsync()
+    {
+
+        
+        await SendAsync(new GameMessage
+        {
+            Type = MessageType.MakeMove,
+            Data = MessagePackSerializer.Serialize(
+                new MakeMoveData { Position = _random.Next(0, 8) }
+            )
+        }
+        );
+    }
+
+    private static void PrintFullBoard(GameStateSyncedData sync)
+    {
+        Console.WriteLine("Grille (placements actuels):");
+        var grid = new string[3,3];
+        for (int r = 0; r < 3; r++)
+            for (int c = 0; c < 3; c++)
+                grid[r, c] = ".";
+
+        for (int i = 0; i < sync.PlayerIds.Count; i++)
+        {
+            var pid = sync.PlayerIds[i];
+            if (!sync.PlayerMoves.TryGetValue(pid, out var moves) || moves == null) continue;
+            var mark = (i + 1).ToString();
+            foreach (var m in moves)
+            {
+                if (m is int pos)
+                {
+                    int r = pos / 3;
+                    int c = pos % 3;
+                    grid[r, c] = mark;
+                }
+            }
+        }
+
+        for (int r = 0; r < 3; r++)
+        {
+            Console.WriteLine($"{grid[r,0]} {grid[r,1]} {grid[r,2]}");
+        }
+    }
+
+    private static void PrintFinalBoard(GameWonData win)
+    {
+        Console.WriteLine("Grille finale:");
+        var grid = new string[3,3];
+        for (int r = 0; r < 3; r++)
+            for (int c = 0; c < 3; c++)
+                grid[r, c] = ".";
+
+        for (int i = 0; i < _lastPlayerIds.Count; i++)
+        {
+            var pid = _lastPlayerIds[i];
+            if (!_lastPlayerMoves.TryGetValue(pid, out var moves) || moves == null) continue;
+            var mark = pid == win.WinnerId ? "." : "O";
+            foreach (var m in moves)
+            {
+                if (m is int pos)
+                {
+                    int r = pos / 3;
+                    int c = pos % 3;
+                    grid[r, c] = mark;
+                }
+            }
+        }
+
+        if (win.WinningPositions != null)
+        {
+            foreach (var pos in win.WinningPositions)
+            {
+                int r = pos / 3;
+                int c = pos % 3;
+                grid[r, c] = "X";
+            }
+        }
+
+        for (int r = 0; r < 3; r++)
+        {
+            Console.WriteLine($"{grid[r,0]} {grid[r,1]} {grid[r,2]}");
+        }
+    }
+
+
+    private static void DisplayGames()
+    {
+        Console.WriteLine("Rooms:");
+        for (int i = 0; i < _availableGames.Count; i++)
+        {
+            var g = _availableGames[i];
+            Console.WriteLine($"[{i}] {g.Name} ({g.PlayerCount}/{g.MaxPlayers})  status={g.Status}  spectators={g.SpectatorCount}");
+        }
+    }
+
+    #endregion
+
+    #region UI Helpers
+
+    private static void PrintHeader()
+    {
+        Console.WriteLine("╔══════════════════════════════╗");
+        Console.WriteLine("║   MORPION CLIENT (STATE)    ║");
+        Console.WriteLine("╚══════════════════════════════╝");
+    }
+
+    private static void PrintInfo(string m) => Console.WriteLine($"[ℹ] {m}");
+    private static void PrintSuccess(string m) => Console.WriteLine($"[✓] {m}");
+    private static void PrintError(string m) => Console.WriteLine($"[✗] {m}");
+
+    #endregion
+}
