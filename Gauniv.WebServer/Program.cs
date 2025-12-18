@@ -44,6 +44,9 @@ using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using SignInResult = Microsoft.AspNetCore.Identity.SignInResult;
+using System.IO;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 
 // Set the culture so that the culture is the same between front and back
@@ -172,5 +175,27 @@ app.UseSwaggerUI(options =>
     options.SwaggerEndpoint("/openapi/v1.json", "v1");
 });
 app.MapHub<OnlineHub>("/online");
+
+// Seed categories from ToDB_Categories.json
+{
+    using var scope = app.Services.CreateScope();
+    var services = scope.ServiceProvider;
+    try
+    {
+        var db = services.GetRequiredService<ApplicationDbContext>();
+        var loggerFactory = services.GetService<ILoggerFactory>();
+        var logger = loggerFactory?.CreateLogger("SeedDatabase");
+        var categoriesJsonPath = Path.Combine(app.Environment.ContentRootPath ?? Directory.GetCurrentDirectory(), "ToDB_Categories.json");
+        var gamesJsonPath = Path.Combine(app.Environment.ContentRootPath ?? Directory.GetCurrentDirectory(), "ToDB_Games.json");
+
+        // call the aggregated seeder and wait for completion (categories then games)
+        AddDataToDB_All.SeedAsync(db, categoriesJsonPath, gamesJsonPath, logger).GetAwaiter().GetResult();
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger("SeedDatabase");
+        logger?.LogError(ex, "An error occurred while seeding database on startup.");
+    }
+}
 
 app.Run();
