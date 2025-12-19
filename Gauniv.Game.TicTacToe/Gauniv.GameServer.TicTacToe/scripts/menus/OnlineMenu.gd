@@ -6,7 +6,7 @@ signal back_pressed
 
 # Éléments du lobby
 @onready var btn_create = $ButtonCreate
-@onready var btn_back = $ButtonBack
+@onready var btn_back = $SelectionContainer/ButtonBack
 @onready var lobby_container = $LobbyContainer
 @onready var label_status = $LabelStatus
 
@@ -76,9 +76,23 @@ func _show_lobby_elements():
 	btn_create.visible = true
 	lobby_container.visible = true
 	label_status.visible = true
+	btn_back.visible = true
 	
 	# Cacher la sélection de personnage
 	selection_container.visible = false
+	
+	# Réinitialiser les champs de saisie
+	input_player_name.text = ""
+	input_game_name.text = ""
+	joining_game_id = ""
+	
+	# Démarrer l'auto-refresh
+	auto_refresh_enabled = true
+	refresh_timer.start()
+	
+	# Rafraîchir immédiatement la liste
+	if tcp_manager.is_connected:
+		_on_refresh_pressed()
 	
 	# Démarrer l'auto-refresh
 	auto_refresh_enabled = true
@@ -96,6 +110,7 @@ func _show_selection_elements():
 	
 	# Afficher la sélection de personnage
 	selection_container.visible = true
+	btn_back.visible = true
 	_update_selection_display()
 	
 	# Afficher/cacher les champs selon le mode (créer ou rejoindre)

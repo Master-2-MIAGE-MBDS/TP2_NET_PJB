@@ -186,16 +186,6 @@ offset_bottom = 822.0
 theme_override_font_sizes/font_size = 90
 text = "Rafrâchir"
 
-[node name="ButtonBack" type="Button" parent="OnlineMenu"]
-visible = false
-layout_mode = 0
-offset_left = 713.0
-offset_top = 1599.0
-offset_right = 1265.0
-offset_bottom = 1770.0
-theme_override_font_sizes/font_size = 90
-text = "Retour"
-
 [node name="LobbyContainer" type="VBoxContainer" parent="OnlineMenu"]
 layout_mode = 0
 offset_left = 1259.0
@@ -215,6 +205,16 @@ offset_left = 194.0
 offset_top = 198.0
 offset_right = 1794.0
 offset_bottom = 1798.0
+
+[node name="ButtonBack" type="Button" parent="OnlineMenu/SelectionContainer"]
+visible = false
+layout_mode = 0
+offset_left = 491.0
+offset_top = 1397.0
+offset_right = 1043.0
+offset_bottom = 1568.0
+theme_override_font_sizes/font_size = 90
+text = "Retour"
 
 [node name="HBoxContainer" type="HBoxContainer" parent="OnlineMenu/SelectionContainer"]
 layout_mode = 0
