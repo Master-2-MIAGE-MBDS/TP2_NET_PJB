@@ -4,6 +4,15 @@ include:
 
 name: gauniv
 services:
+    gauniv.gameserver:
+        build:
+            context: .
+            dockerfile: Gauniv.GameServer/Dockerfile
+        environment:
+          - GAMESERVER_PORT=7777
+        ports:
+          - "7777:7777"
+        restart: unless-stopped
     gauniv.webserver:
         image: ${DOCKER_REGISTRY-}gaunivwebserver
         build:
