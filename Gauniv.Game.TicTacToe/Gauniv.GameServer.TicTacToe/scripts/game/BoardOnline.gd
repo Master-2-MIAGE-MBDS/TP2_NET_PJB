@@ -28,6 +28,7 @@ func start_online_game_as_host(character: String):
 	_reset_board()
 	_set_buttons_enabled(false)
 	_show_waiting_label()
+	button_back.visible = false
 	_setup_tcp_connection()
 	online_manager.start_listening()
 
@@ -42,6 +43,7 @@ func start_online_game_as_guest(game_data: Dictionary):
 	_reset_board()
 	if game_data.has("boardstate"):
 		_apply_boardstate(game_data["boardstate"])
+	button_back.visible = false
 	_setup_tcp_connection()
 	online_manager.start_listening()
 
@@ -172,6 +174,7 @@ func _apply_boardstate(boardstate: Dictionary):
 func _handle_remote_victory(winner: String, winner_name: String):
 	game_ended = true
 	button_restart.visible = true
+	button_back.visible = true
 	online_manager.stop_polling()
 	var display_name = winner_name
 	if display_name == "" and pending_winner_name != "":
@@ -190,6 +193,7 @@ func _handle_remote_victory(winner: String, winner_name: String):
 func _handle_game_finished(data: Dictionary):
 	game_ended = true
 	button_restart.visible = true
+	button_back.visible = true
 	_set_buttons_enabled(false)
 	pending_winner_id = data.get("WinnerId", "")
 	pending_winner_name = data.get("WinnerName", "")
