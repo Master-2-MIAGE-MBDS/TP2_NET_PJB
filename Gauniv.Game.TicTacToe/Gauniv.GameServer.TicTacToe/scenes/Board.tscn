@@ -1,0 +1,468 @@
+[gd_scene load_steps=13 format=3]
+
+[ext_resource type="Texture2D" uid="uid://bs2q8griio5mc" path="res://assets/meluche/meluche.png" id="1"]
+[ext_resource type="Texture2D" uid="uid://bbevk7u6v3isk" path="res://assets/lepen/lepen.png" id="2"]
+
+[sub_resource type="StyleBoxFlat" id="SB_BoardCellNormal"]
+bg_color = Color(0.21, 0.2, 0.27, 1)
+border_color = Color(0.36, 0.34, 0.46, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+corner_radius_top_left = 30
+corner_radius_top_right = 30
+corner_radius_bottom_right = 30
+corner_radius_bottom_left = 30
+
+[sub_resource type="StyleBoxFlat" id="SB_BoardCellHover"]
+bg_color = Color(0.32, 0.29, 0.43, 1)
+border_color = Color(0.76, 0.55, 0.8, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+corner_radius_top_left = 30
+corner_radius_top_right = 30
+corner_radius_bottom_right = 30
+corner_radius_bottom_left = 30
+
+[sub_resource type="StyleBoxFlat" id="SB_BoardCellPressed"]
+bg_color = Color(0.16, 0.15, 0.2, 1)
+border_color = Color(0.9, 0.47, 0.64, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+corner_radius_top_left = 30
+corner_radius_top_right = 30
+corner_radius_bottom_right = 30
+corner_radius_bottom_left = 30
+
+[sub_resource type="StyleBoxFlat" id="SB_PrimaryNormal"]
+bg_color = Color(0.96, 0.49, 0.34, 1)
+border_color = Color(0.95, 0.64, 0.49, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+corner_radius_top_left = 40
+corner_radius_top_right = 40
+corner_radius_bottom_right = 40
+corner_radius_bottom_left = 40
+
+[sub_resource type="StyleBoxFlat" id="SB_PrimaryHover"]
+bg_color = Color(1, 0.62, 0.45, 1)
+border_color = Color(1, 0.8, 0.58, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+corner_radius_top_left = 40
+corner_radius_top_right = 40
+corner_radius_bottom_right = 40
+corner_radius_bottom_left = 40
+
+[sub_resource type="StyleBoxFlat" id="SB_PrimaryPressed"]
+bg_color = Color(0.84, 0.35, 0.25, 1)
+border_color = Color(1, 0.52, 0.4, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+corner_radius_top_left = 40
+corner_radius_top_right = 40
+corner_radius_bottom_right = 40
+corner_radius_bottom_left = 40
+
+[sub_resource type="StyleBoxFlat" id="SB_SecondaryNormal"]
+bg_color = Color(0.19, 0.18, 0.26, 1)
+border_color = Color(0.45, 0.43, 0.57, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+corner_radius_top_left = 40
+corner_radius_top_right = 40
+corner_radius_bottom_right = 40
+corner_radius_bottom_left = 40
+
+[sub_resource type="StyleBoxFlat" id="SB_SecondaryHover"]
+bg_color = Color(0.28, 0.27, 0.38, 1)
+border_color = Color(0.64, 0.62, 0.78, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+corner_radius_top_left = 40
+corner_radius_top_right = 40
+corner_radius_bottom_right = 40
+corner_radius_bottom_left = 40
+
+[sub_resource type="StyleBoxFlat" id="SB_SecondaryPressed"]
+bg_color = Color(0.14, 0.13, 0.2, 1)
+border_color = Color(0.38, 0.36, 0.5, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+corner_radius_top_left = 40
+corner_radius_top_right = 40
+corner_radius_bottom_right = 40
+corner_radius_bottom_left = 40
+
+[sub_resource type="StyleBoxFlat" id="SB_ScoreCard"]
+bg_color = Color(0.15, 0.14, 0.21, 0.92)
+border_color = Color(0.42, 0.4, 0.52, 1)
+border_width_bottom = 2
+border_width_left = 2
+border_width_right = 2
+border_width_top = 2
+corner_radius_top_left = 36
+corner_radius_top_right = 36
+corner_radius_bottom_right = 36
+corner_radius_bottom_left = 36
+
+[sub_resource type="StyleBoxFlat" id="SB_BoardPanel"]
+bg_color = Color(0.12, 0.11, 0.17, 0.85)
+border_color = Color(0.34, 0.32, 0.45, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+corner_radius_top_left = 48
+corner_radius_top_right = 48
+corner_radius_bottom_right = 48
+corner_radius_bottom_left = 48
+
+[node name="Board" type="Node2D"]
+visible = false
+
+[node name="BackgroundBase" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_bottom = 1.0
+anchor_right = 1.0
+color = Color(0.07, 0.07, 0.1, 1)
+
+[node name="BackgroundAccent" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_bottom = 1.0
+anchor_right = 1.0
+offset_left = -200.0
+offset_top = -200.0
+offset_right = 200.0
+offset_bottom = 200.0
+color = Color(0.89, 0.45, 0.52, 0.1)
+pivot_offset = Vector2(960, 540)
+rotation = -0.2
+z_index = -1
+
+[node name="HeaderLabel" type="Label" parent="."]
+offset_left = 720.0
+offset_top = 40.0
+offset_right = 1320.0
+offset_bottom = 120.0
+scale = Vector2(1.08, 1.08)
+theme_override_font_sizes/font_size = 80
+text = "Tic-Tac-Droite"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BoardPanel" type="Panel" parent="."]
+offset_left = 480.0
+offset_top = 300.0
+offset_right = 1568.0
+offset_bottom = 1506.0
+theme_override_styles/panel = SubResource("SB_BoardPanel")
+z_index = -1
+
+[node name="ScorePanelLeft" type="Panel" parent="."]
+offset_left = 68.0
+offset_top = 180.0
+offset_right = 468.0
+offset_bottom = 760.0
+theme_override_styles/panel = SubResource("SB_ScoreCard")
+z_index = -1
+
+[node name="ScorePanelRight" type="Panel" parent="."]
+offset_left = 1580.0
+offset_top = 180.0
+offset_right = 1980.0
+offset_bottom = 760.0
+theme_override_styles/panel = SubResource("SB_ScoreCard")
+z_index = -1
+
+[node name="ScoreP1" type="VBoxContainer" parent="."]
+offset_left = 88.0
+offset_top = 200.0
+offset_right = 448.0
+offset_bottom = 740.0
+alignment = 1
+
+[node name="ImageP1" type="TextureRect" parent="ScoreP1"]
+custom_minimum_size = Vector2(0, 140)
+layout_mode = 2
+stretch_mode = 5
+texture = ExtResource("1")
+modulate = Color(1, 1, 1, 1)
+
+[node name="LabelPlayerName" type="Label" parent="ScoreP1"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 60
+text = "Joueur 1"
+horizontal_alignment = 1
+vertical_alignment = 1
+uppercase = true
+theme_override_colors/font_color = Color(0.92, 0.92, 0.94, 1)
+
+[node name="LabelScoreP1" type="Label" parent="ScoreP1"]
+custom_minimum_size = Vector2(200, 120)
+layout_mode = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "0"
+theme_override_font_sizes/font_size = 180
+theme_override_colors/font_color = Color(1, 0.77, 0.58, 1)
+
+[node name="ScoreP2" type="VBoxContainer" parent="."]
+offset_left = 1600.0
+offset_top = 200.0
+offset_right = 1960.0
+offset_bottom = 740.0
+alignment = 1
+
+[node name="ImageP2" type="TextureRect" parent="ScoreP2"]
+custom_minimum_size = Vector2(0, 140)
+layout_mode = 2
+stretch_mode = 5
+texture = ExtResource("2")
+modulate = Color(1, 1, 1, 1)
+
+[node name="LabelPlayerName" type="Label" parent="ScoreP2"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 60
+text = "Joueur 2"
+horizontal_alignment = 1
+vertical_alignment = 1
+uppercase = true
+theme_override_colors/font_color = Color(0.92, 0.92, 0.94, 1)
+
+[node name="LabelScoreP2" type="Label" parent="ScoreP2"]
+custom_minimum_size = Vector2(200, 120)
+layout_mode = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "0"
+theme_override_font_sizes/font_size = 180
+theme_override_colors/font_color = Color(0.73, 0.86, 1, 1)
+
+[node name="GridContainer" type="GridContainer" parent="."]
+offset_left = 520.0
+offset_top = 340.0
+offset_right = 1528.0
+offset_bottom = 1466.0
+columns = 3
+custom_constants/v_separation = 18
+custom_constants/h_separation = 18
+
+[node name="Button" type="Button" parent="GridContainer"]
+custom_minimum_size = Vector2(320, 320)
+layout_mode = 2
+focus_mode = 0
+theme_override_styles/normal = SubResource("SB_BoardCellNormal")
+theme_override_styles/hover = SubResource("SB_BoardCellHover")
+theme_override_styles/pressed = SubResource("SB_BoardCellPressed")
+theme_override_styles/disabled = SubResource("SB_BoardCellNormal")
+theme_override_colors/font_color = Color(0.93, 0.93, 0.96, 1)
+theme_override_colors/icon_normal_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 120
+icon_alignment = 1
+
+[node name="Button2" type="Button" parent="GridContainer"]
+custom_minimum_size = Vector2(320, 320)
+layout_mode = 2
+focus_mode = 0
+theme_override_styles/normal = SubResource("SB_BoardCellNormal")
+theme_override_styles/hover = SubResource("SB_BoardCellHover")
+theme_override_styles/pressed = SubResource("SB_BoardCellPressed")
+theme_override_styles/disabled = SubResource("SB_BoardCellNormal")
+theme_override_colors/font_color = Color(0.93, 0.93, 0.96, 1)
+theme_override_colors/icon_normal_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 120
+icon_alignment = 1
+
+[node name="Button3" type="Button" parent="GridContainer"]
+custom_minimum_size = Vector2(320, 320)
+layout_mode = 2
+focus_mode = 0
+theme_override_styles/normal = SubResource("SB_BoardCellNormal")
+theme_override_styles/hover = SubResource("SB_BoardCellHover")
+theme_override_styles/pressed = SubResource("SB_BoardCellPressed")
+theme_override_styles/disabled = SubResource("SB_BoardCellNormal")
+theme_override_colors/font_color = Color(0.93, 0.93, 0.96, 1)
+theme_override_colors/icon_normal_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 120
+icon_alignment = 1
+
+[node name="Button4" type="Button" parent="GridContainer"]
+custom_minimum_size = Vector2(320, 320)
+layout_mode = 2
+focus_mode = 0
+theme_override_styles/normal = SubResource("SB_BoardCellNormal")
+theme_override_styles/hover = SubResource("SB_BoardCellHover")
+theme_override_styles/pressed = SubResource("SB_BoardCellPressed")
+theme_override_styles/disabled = SubResource("SB_BoardCellNormal")
+theme_override_colors/font_color = Color(0.93, 0.93, 0.96, 1)
+theme_override_colors/icon_normal_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 120
+icon_alignment = 1
+
+[node name="Button5" type="Button" parent="GridContainer"]
+custom_minimum_size = Vector2(320, 320)
+layout_mode = 2
+focus_mode = 0
+theme_override_styles/normal = SubResource("SB_BoardCellNormal")
+theme_override_styles/hover = SubResource("SB_BoardCellHover")
+theme_override_styles/pressed = SubResource("SB_BoardCellPressed")
+theme_override_styles/disabled = SubResource("SB_BoardCellNormal")
+theme_override_colors/font_color = Color(0.93, 0.93, 0.96, 1)
+theme_override_colors/icon_normal_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 120
+icon_alignment = 1
+
+[node name="Button6" type="Button" parent="GridContainer"]
+custom_minimum_size = Vector2(320, 320)
+layout_mode = 2
+focus_mode = 0
+theme_override_styles/normal = SubResource("SB_BoardCellNormal")
+theme_override_styles/hover = SubResource("SB_BoardCellHover")
+theme_override_styles/pressed = SubResource("SB_BoardCellPressed")
+theme_override_styles/disabled = SubResource("SB_BoardCellNormal")
+theme_override_colors/font_color = Color(0.93, 0.93, 0.96, 1)
+theme_override_colors/icon_normal_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 120
+icon_alignment = 1
+
+[node name="Button7" type="Button" parent="GridContainer"]
+custom_minimum_size = Vector2(320, 320)
+layout_mode = 2
+focus_mode = 0
+theme_override_styles/normal = SubResource("SB_BoardCellNormal")
+theme_override_styles/hover = SubResource("SB_BoardCellHover")
+theme_override_styles/pressed = SubResource("SB_BoardCellPressed")
+theme_override_styles/disabled = SubResource("SB_BoardCellNormal")
+theme_override_colors/font_color = Color(0.93, 0.93, 0.96, 1)
+theme_override_colors/icon_normal_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 120
+icon_alignment = 1
+
+[node name="Button8" type="Button" parent="GridContainer"]
+custom_minimum_size = Vector2(320, 320)
+layout_mode = 2
+focus_mode = 0
+theme_override_styles/normal = SubResource("SB_BoardCellNormal")
+theme_override_styles/hover = SubResource("SB_BoardCellHover")
+theme_override_styles/pressed = SubResource("SB_BoardCellPressed")
+theme_override_styles/disabled = SubResource("SB_BoardCellNormal")
+theme_override_colors/font_color = Color(0.93, 0.93, 0.96, 1)
+theme_override_colors/icon_normal_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 120
+icon_alignment = 1
+
+[node name="Button9" type="Button" parent="GridContainer"]
+custom_minimum_size = Vector2(320, 320)
+layout_mode = 2
+focus_mode = 0
+theme_override_styles/normal = SubResource("SB_BoardCellNormal")
+theme_override_styles/hover = SubResource("SB_BoardCellHover")
+theme_override_styles/pressed = SubResource("SB_BoardCellPressed")
+theme_override_styles/disabled = SubResource("SB_BoardCellNormal")
+theme_override_colors/font_color = Color(0.93, 0.93, 0.96, 1)
+theme_override_colors/icon_normal_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 120
+icon_alignment = 1
+
+[node name="ButtonRestart" type="Button" parent="."]
+offset_left = 760.0
+offset_top = 160.0
+offset_right = 1280.0
+offset_bottom = 260.0
+text = "Rejouer"
+focus_mode = 0
+theme_override_styles/normal = SubResource("SB_PrimaryNormal")
+theme_override_styles/hover = SubResource("SB_PrimaryHover")
+theme_override_styles/pressed = SubResource("SB_PrimaryPressed")
+theme_override_colors/font_color = Color(1, 0.98, 0.95, 1)
+theme_override_font_sizes/font_size = 70
+
+[node name="AudioPlayer" type="AudioStreamPlayer2D" parent="."]
+
+[node name="ButtonBack" type="Button" parent="."]
+offset_left = 860.0
+offset_top = 1600.0
+offset_right = 1180.0
+offset_bottom = 1700.0
+text = "Retour"
+focus_mode = 0
+theme_override_styles/normal = SubResource("SB_SecondaryNormal")
+theme_override_styles/hover = SubResource("SB_SecondaryHover")
+theme_override_styles/pressed = SubResource("SB_SecondaryPressed")
+theme_override_colors/font_color = Color(0.92, 0.92, 0.96, 1)
+theme_override_font_sizes/font_size = 60
+
+[node name="LabelWaiting" type="Label" parent="."]
+visible = false
+offset_left = 700.0
+offset_top = 980.0
+offset_right = 1348.0
+offset_bottom = 1070.0
+horizontal_alignment = 1
+vertical_alignment = 1
+uppercase = true
+theme_override_font_sizes/font_size = 70
+theme_override_colors/font_color = Color(0.84, 0.83, 0.93, 1)
+theme_override_colors/font_outline_color = Color(0.11, 0.1, 0.16, 0.8)
+
+[node name="LabelResult" type="Label" parent="."]
+visible = false
+offset_left = 620.0
+offset_top = 820.0
+offset_right = 1430.0
+offset_bottom = 1010.0
+horizontal_alignment = 1
+vertical_alignment = 1
+uppercase = true
+theme_override_font_sizes/font_size = 110
+theme_override_colors/font_color = Color(1, 0.94, 0.85, 1)
+theme_override_colors/font_outline_color = Color(0.08, 0.08, 0.12, 0.7)
+
+[node name="WaitingTimer" type="Timer" parent="."]
+wait_time = 0.5
+autostart = false

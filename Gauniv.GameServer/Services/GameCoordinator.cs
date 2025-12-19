@@ -93,6 +93,8 @@ public class GameCoordinator
     {
         var (connection, message) = e;
         
+        Console.WriteLine($"[Coordinator] Message reçu - Type: {message.Type}, PlayerId: {message.PlayerId ?? "null"}, Data: {(message.Data != null ? $"{message.Data.Length} bytes" : "null")}");
+        
         try
         {
             await HandleMessageAsync(connection, message);
@@ -100,6 +102,7 @@ public class GameCoordinator
         catch (Exception ex)
         {
             Console.WriteLine($"[Coordinator] Erreur lors du traitement du message: {ex.Message}");
+            Console.WriteLine($"[Coordinator] StackTrace: {ex.StackTrace}");
             await SendErrorAsync(connection, "PROCESSING_ERROR", ex.Message);
         }
     }
@@ -157,7 +160,22 @@ public class GameCoordinator
             return;
         }
         
-        var connectData = MessagePackSerializer.Deserialize<PlayerConnectData>(message.Data);
+        Console.WriteLine($"[Coordinator] Data reçue - Taille: {message.Data.Length} bytes");
+        Console.WriteLine($"[Coordinator] Data hex: {BitConverter.ToString(message.Data)}");
+        
+        PlayerConnectData connectData;
+        try
+        {
+            connectData = MessagePackSerializer.Deserialize<PlayerConnectData>(message.Data);
+            Console.WriteLine($"[Coordinator] PlayerConnectData désérialisé: Name={connectData.PlayerName}, UserId={connectData.UserId}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Coordinator] Erreur de désérialisation PlayerConnectData: {ex.Message}");
+            Console.WriteLine($"[Coordinator] StackTrace: {ex.StackTrace}");
+            await SendErrorAsync(connection, "DESERIALIZATION_ERROR", $"Impossible de désérialiser PlayerConnectData: {ex.Message}");
+            return;
+        }
         
         // Générer un ID unique
         var clientId = Guid.NewGuid().ToString();
@@ -249,6 +267,7 @@ public class GameCoordinator
         {
             totalRooms = _rooms.Count;
             games = _rooms.Values
+                .Where(r => r.GameStatus != GameStatus.FINISHED)
                 .Select(r => new GameSummary
                 {
                     GameId = r.GameId,
@@ -325,7 +344,7 @@ public class GameCoordinator
         }
 
         // Initialiser les coups du joueur s'il n'est pas spectateur
-        if (room.PlayerIds.Count <= 2)
+        if (!isSpectator)
         {
             room.InitializePlayer(connection.PlayerId);
             room.CharactersName[connection.PlayerId] = joinRequest.Character;
@@ -360,14 +379,16 @@ public class GameCoordinator
 
         await connection.SendMessageAsync(response);
 
-        // Après le join, envoyer l'état complet du jeu (spectateur ou joueur)
+        // Après le join, envoyer l'état complet du jeu à toute la room (joueur hôte compris)
         var syncData = BuildSyncData(room);
-        await connection.SendMessageAsync(new GameMessage
+        var syncMessage = new GameMessage
         {
             Type = MessageType.GameStateSynced,
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             Data = MessagePackSerializer.Serialize(syncData)
-        });
+        };
+
+        await BroadcastToRoomAsync(room.GameId, syncMessage);
     }
     private async Task HandleGameStateAsync(PlayerConnection connection, GameMessage message)
     {
@@ -690,8 +711,6 @@ public class GameCoordinator
         var moveData = MessagePackSerializer.Deserialize<MakeMoveData>(message.Data);
         int position = moveData.Position;
 
-        var bu_PlayerMoves = room.PlayerMoves[connection.PlayerId];
-
 
         // Valider le coup
         if (position < 0 || position > 8)
@@ -719,8 +738,26 @@ public class GameCoordinator
             PlayerId = connection.PlayerId,
             Position = position,
         };
-        
 
+        await connection.SendMessageAsync(new GameMessage
+        {
+            Type = MessageType.MoveAccepted,
+            PlayerId = connection.PlayerId,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Data = MessagePackSerializer.Serialize(acceptedData)
+        });
+
+        // Broadcaster le coup à tous les autres joueurs et spectateurs
+        await BroadcastToRoomExceptAsync(roomId, connection.PlayerId, new GameMessage
+        {
+            Type = MessageType.MoveMade,
+            PlayerId = connection.PlayerId,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Data = MessagePackSerializer.Serialize(acceptedData)
+        });
+
+        // Envoyer l'état complet du jeu aux spectateurs
+        await BroadcastSyncToSpectatorsAsync(roomId);
 
         ShowCurrentGameState(room);
 
@@ -752,28 +789,9 @@ public class GameCoordinator
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 Data = MessagePackSerializer.Serialize(winData)
             });
-        }
-        else
-        {
-            await connection.SendMessageAsync(new GameMessage
-        {
-            Type = MessageType.MoveAccepted,
-            PlayerId = connection.PlayerId,
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            Data = MessagePackSerializer.Serialize(acceptedData)
-        });
-
-        // Broadcaster le coup à tous les autres joueurs et spectateurs
-        await BroadcastToRoomExceptAsync(roomId, connection.PlayerId, new GameMessage
-        {
-            Type = MessageType.MoveMade,
-            PlayerId = connection.PlayerId,
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            Data = MessagePackSerializer.Serialize(acceptedData)
-        });
-
-        // Envoyer l'état complet du jeu aux spectateurs
-        await BroadcastSyncToSpectatorsAsync(roomId);
+            
+            // Envoyer l'état final aux spectateurs après la victoire
+            await BroadcastSyncToSpectatorsAsync(roomId);
         }
         
     }
@@ -814,15 +832,7 @@ public class GameCoordinator
             return;
         }
 
-        // Créer l'état de synchronisation
-        var syncData = new GameStateSyncedData
-        {
-            PlayerIds = room.PlayerIds,
-            PlayerMoves = room.PlayerMoves,
-            GameStatus = room.GameStatus.ToString(),
-            WinnerId = room.WinnerId,
-            CharactersName = room.CharactersName
-        };
+        var syncData = BuildSyncData(room);
 
         Console.WriteLine($"[Coordinator] Synchronisation envoyée à {connection.PlayerName}");
 
@@ -836,13 +846,20 @@ public class GameCoordinator
 
     private GameStateSyncedData BuildSyncData(GameRoom room)
     {
+        var playerNames = new Dictionary<string, string>();
+        foreach (var playerId in room.PlayerIds)
+        {
+            playerNames[playerId] = GetPlayerName(playerId);
+        }
+
         return new GameStateSyncedData
         {
             PlayerIds = room.PlayerIds,
             PlayerMoves = room.PlayerMoves,
             GameStatus = room.GameStatus.ToString(),
             WinnerId = room.WinnerId,
-            CharactersName = room.CharactersName
+            CharactersName = room.CharactersName,
+            PlayerNames = playerNames
         };
     }
     
