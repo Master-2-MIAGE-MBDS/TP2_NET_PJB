@@ -24,6 +24,8 @@ var texture_x: Texture2D
 var texture_o: Texture2D
 var sound_x: AudioStream
 var sound_o: AudioStream
+var sound_x_win: AudioStream
+var sound_o_win: AudioStream
 var character_x_name: String = ""
 var character_o_name: String = ""
 var player_name_x: String = ""
@@ -63,6 +65,8 @@ func _load_assets(char_p1: String, char_p2: String):
 	texture_o = GameConfig.get_character_texture(resolved_o)
 	sound_x = GameConfig.get_character_sound(resolved_x)
 	sound_o = GameConfig.get_character_sound(resolved_o)
+	sound_x_win = load("res://assets/" + resolved_x + "/son2_" + resolved_x + ".mp3")
+	sound_o_win = load("res://assets/" + resolved_o + "/son2_" + resolved_o + ".mp3")
 	image_p1.texture = texture_x
 	image_p2.texture = texture_o
 
@@ -84,12 +88,14 @@ func _apply_character_assets(char_x: String, char_o: String):
 		character_x_name = resolved_x
 		texture_x = GameConfig.get_character_texture(resolved_x)
 		sound_x = GameConfig.get_character_sound(resolved_x)
+		sound_x_win = load("res://assets/" + resolved_x + "/son2_" + resolved_x + ".mp3")
 		image_p1.texture = texture_x
 	if char_o != "" and (char_o != character_o_name or texture_o == null):
 		var resolved_o = _resolve_character(char_o, GameConfig.CELL_O)
 		character_o_name = resolved_o
 		texture_o = GameConfig.get_character_texture(resolved_o)
 		sound_o = GameConfig.get_character_sound(resolved_o)
+		sound_o_win = load("res://assets/" + resolved_o + "/son2_" + resolved_o + ".mp3")
 		image_p2.texture = texture_o
 
 func _default_player_name(slot: String) -> String:
@@ -148,14 +154,10 @@ func _play_move(idx: int):
 	var pawns = x_pawns if current_player == GameConfig.CELL_X else o_pawns
 	pawns.append(idx)
 	var texture = texture_x if current_player == GameConfig.CELL_X else texture_o
-	var sound = sound_x if current_player == GameConfig.CELL_X else sound_o
 	buttons[idx].icon = texture
 	buttons[idx].disabled = true
 	buttons[idx].modulate = Color(1, 1, 1, 1)
 	_update_piece_styles(pawns)
-	if sound:
-		audio_player.stream = sound
-		audio_player.play()
 	if pawns.size() > GameConfig.MAX_PIECES:
 		var oldest_idx = pawns.pop_front()
 		if oldest_idx != null:
@@ -166,7 +168,20 @@ func _play_move(idx: int):
 	_check_victory()
 
 func _check_victory():
-	if _check_winner(current_player):
+	var is_winner = _check_winner(current_player)
+	
+	# Jouer le son approprié
+	var sound: AudioStream
+	if is_winner:
+		sound = sound_x_win if current_player == GameConfig.CELL_X else sound_o_win
+	else:
+		sound = sound_x if current_player == GameConfig.CELL_X else sound_o
+	
+	if sound:
+		audio_player.stream = sound
+		audio_player.play()
+	
+	if is_winner:
 		game_ended = true
 		button_restart.visible = true
 		_show_result_label_for_name(_get_display_name_for_cell(current_player))

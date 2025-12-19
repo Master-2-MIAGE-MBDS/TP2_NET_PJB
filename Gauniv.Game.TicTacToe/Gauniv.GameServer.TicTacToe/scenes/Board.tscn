@@ -164,7 +164,7 @@ offset_right = 1320.0
 offset_bottom = 120.0
 scale = Vector2(1.08, 1.08)
 theme_override_font_sizes/font_size = 80
-text = "Tic-Tac Débat"
+text = "Tic-Tac-Droite"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -177,9 +177,9 @@ theme_override_styles/panel = SubResource("SB_BoardPanel")
 z_index = -1
 
 [node name="ScorePanelLeft" type="Panel" parent="."]
-offset_left = 120.0
+offset_left = 68.0
 offset_top = 180.0
-offset_right = 440.0
+offset_right = 468.0
 offset_bottom = 760.0
 theme_override_styles/panel = SubResource("SB_ScoreCard")
 z_index = -1
@@ -193,9 +193,9 @@ theme_override_styles/panel = SubResource("SB_ScoreCard")
 z_index = -1
 
 [node name="ScoreP1" type="VBoxContainer" parent="."]
-offset_left = 140.0
+offset_left = 88.0
 offset_top = 200.0
-offset_right = 420.0
+offset_right = 448.0
 offset_bottom = 740.0
 alignment = 1
 
@@ -204,12 +204,12 @@ custom_minimum_size = Vector2(0, 140)
 layout_mode = 2
 stretch_mode = 5
 texture = ExtResource("1")
-modulate = Color(0.95, 0.95, 0.95, 1)
+modulate = Color(1, 1, 1, 1)
 
 [node name="LabelPlayerName" type="Label" parent="ScoreP1"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 60
-text = "Joueur X"
+text = "Joueur 1"
 horizontal_alignment = 1
 vertical_alignment = 1
 uppercase = true
@@ -236,12 +236,12 @@ custom_minimum_size = Vector2(0, 140)
 layout_mode = 2
 stretch_mode = 5
 texture = ExtResource("2")
-modulate = Color(0.95, 0.95, 0.95, 1)
+modulate = Color(1, 1, 1, 1)
 
 [node name="LabelPlayerName" type="Label" parent="ScoreP2"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 60
-text = "Joueur O"
+text = "Joueur 2"
 horizontal_alignment = 1
 vertical_alignment = 1
 uppercase = true
@@ -274,6 +274,10 @@ theme_override_styles/hover = SubResource("SB_BoardCellHover")
 theme_override_styles/pressed = SubResource("SB_BoardCellPressed")
 theme_override_styles/disabled = SubResource("SB_BoardCellNormal")
 theme_override_colors/font_color = Color(0.93, 0.93, 0.96, 1)
+theme_override_colors/icon_normal_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 120
 icon_alignment = 1
 
@@ -286,6 +290,10 @@ theme_override_styles/hover = SubResource("SB_BoardCellHover")
 theme_override_styles/pressed = SubResource("SB_BoardCellPressed")
 theme_override_styles/disabled = SubResource("SB_BoardCellNormal")
 theme_override_colors/font_color = Color(0.93, 0.93, 0.96, 1)
+theme_override_colors/icon_normal_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 120
 icon_alignment = 1
 
@@ -298,6 +306,10 @@ theme_override_styles/hover = SubResource("SB_BoardCellHover")
 theme_override_styles/pressed = SubResource("SB_BoardCellPressed")
 theme_override_styles/disabled = SubResource("SB_BoardCellNormal")
 theme_override_colors/font_color = Color(0.93, 0.93, 0.96, 1)
+theme_override_colors/icon_normal_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 120
 icon_alignment = 1
 
@@ -310,6 +322,10 @@ theme_override_styles/hover = SubResource("SB_BoardCellHover")
 theme_override_styles/pressed = SubResource("SB_BoardCellPressed")
 theme_override_styles/disabled = SubResource("SB_BoardCellNormal")
 theme_override_colors/font_color = Color(0.93, 0.93, 0.96, 1)
+theme_override_colors/icon_normal_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 120
 icon_alignment = 1
 
@@ -322,6 +338,10 @@ theme_override_styles/hover = SubResource("SB_BoardCellHover")
 theme_override_styles/pressed = SubResource("SB_BoardCellPressed")
 theme_override_styles/disabled = SubResource("SB_BoardCellNormal")
 theme_override_colors/font_color = Color(0.93, 0.93, 0.96, 1)
+theme_override_colors/icon_normal_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 120
 icon_alignment = 1
 
@@ -334,6 +354,10 @@ theme_override_styles/hover = SubResource("SB_BoardCellHover")
 theme_override_styles/pressed = SubResource("SB_BoardCellPressed")
 theme_override_styles/disabled = SubResource("SB_BoardCellNormal")
 theme_override_colors/font_color = Color(0.93, 0.93, 0.96, 1)
+theme_override_colors/icon_normal_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 120
 icon_alignment = 1
 
@@ -346,6 +370,10 @@ theme_override_styles/hover = SubResource("SB_BoardCellHover")
 theme_override_styles/pressed = SubResource("SB_BoardCellPressed")
 theme_override_styles/disabled = SubResource("SB_BoardCellNormal")
 theme_override_colors/font_color = Color(0.93, 0.93, 0.96, 1)
+theme_override_colors/icon_normal_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 120
 icon_alignment = 1
 
@@ -358,6 +386,10 @@ theme_override_styles/hover = SubResource("SB_BoardCellHover")
 theme_override_styles/pressed = SubResource("SB_BoardCellPressed")
 theme_override_styles/disabled = SubResource("SB_BoardCellNormal")
 theme_override_colors/font_color = Color(0.93, 0.93, 0.96, 1)
+theme_override_colors/icon_normal_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 120
 icon_alignment = 1
 
@@ -370,6 +402,10 @@ theme_override_styles/hover = SubResource("SB_BoardCellHover")
 theme_override_styles/pressed = SubResource("SB_BoardCellPressed")
 theme_override_styles/disabled = SubResource("SB_BoardCellNormal")
 theme_override_colors/font_color = Color(0.93, 0.93, 0.96, 1)
+theme_override_colors/icon_normal_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_disabled_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 120
 icon_alignment = 1
 
