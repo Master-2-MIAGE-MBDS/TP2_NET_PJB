@@ -7,6 +7,7 @@ var last_x_pawns_size: int = 0
 var last_o_pawns_size: int = 0
 var pending_winner_id: String = ""
 var pending_winner_name: String = ""
+var last_winner_detected: String = ""
 
 func _ready():
 	super._ready()
@@ -139,14 +140,28 @@ func _apply_boardstate(boardstate: Dictionary):
 	_update_piece_styles(o_pawns)
 	var x_changed = _pawns_changed(previous_x_pawns, x_pawns)
 	var o_changed = _pawns_changed(previous_o_pawns, o_pawns)
+	
+	# Détecter le joueur qui a fait le dernier coup
+	var last_player_who_moved = ""
 	if x_changed and not o_changed:
 		current_player = GameConfig.CELL_O
-		_play_move_sound(GameConfig.CELL_X)
+		last_player_who_moved = GameConfig.CELL_X
 	elif o_changed and not x_changed:
 		current_player = GameConfig.CELL_X
-		_play_move_sound(GameConfig.CELL_O)
+		last_player_who_moved = GameConfig.CELL_O
 	else:
 		current_player = GameConfig.get_current_player_from_pawns(x_pawns, o_pawns)
+	
+	# Jouer le son approprié
+	if winner != null and winner != last_winner_detected:
+		# Nouveau winner détecté, jouer le son gagnant
+		var winning_player = GameConfig.CELL_X if winner == player_x_id else GameConfig.CELL_O
+		_play_move_sound(winning_player, true)
+		last_winner_detected = winner
+	elif last_player_who_moved != "":
+		# Coup normal
+		_play_move_sound(last_player_who_moved, false)
+	
 	if winner != null:
 		_handle_remote_victory(winner, winner_name)
 	else:
@@ -192,6 +207,7 @@ func _reset_board():
 	_set_buttons_enabled(false)
 	pending_winner_id = ""
 	pending_winner_name = ""
+	last_winner_detected = ""
 
 func _pawns_changed(old_pawns: Array, new_pawns: Array) -> bool:
 	if old_pawns.size() != new_pawns.size():
@@ -203,8 +219,13 @@ func _pawns_changed(old_pawns: Array, new_pawns: Array) -> bool:
 			return true
 	return false
 
-func _play_move_sound(cell: String):
-	var sound = sound_x if cell == GameConfig.CELL_X else sound_o
+func _play_move_sound(cell: String, is_winning_move: bool = false):
+	var sound: AudioStream
+	if is_winning_move:
+		sound = sound_x_win if cell == GameConfig.CELL_X else sound_o_win
+	else:
+		sound = sound_x if cell == GameConfig.CELL_X else sound_o
+	
 	if sound:
 		audio_player.stream = sound
 		audio_player.play()
