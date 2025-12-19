@@ -1,4 +1,5 @@
 ﻿#region Header
+
 // Cyril Tisserand
 // Projet Gauniv - WebServer
 // Gauniv 2025
@@ -25,11 +26,11 @@
 // use or other dealings in this Software without prior written authorization from the  Sophia-Antipolis University.
 // 
 // Please respect the team's standards for any future contribution
+
 #endregion
-using Mapster;
+
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-
 
 namespace Gauniv.WebServer.Data
 {
@@ -38,5 +39,15 @@ namespace Gauniv.WebServer.Data
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         [Key]
         public int Id { get; set; }
+
+        [Required] [MaxLength(150)] public string Name { get; set; } = string.Empty;
+
+        [MaxLength(1000)] public string Description { get; set; } = string.Empty;
+
+        public byte[] Payload { get; set; } = new byte[0];
+
+        public decimal Price { get; set; } = 0m;
+
+        public ICollection<Categorie> Categories { get; set; } = new List<Categorie>();
     }
 }

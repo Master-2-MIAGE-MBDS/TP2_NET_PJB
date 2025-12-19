@@ -1,4 +1,5 @@
 ﻿#region Header
+
 // Cyril Tisserand
 // Projet Gauniv - WebServer
 // Gauniv 2025
@@ -25,27 +26,25 @@
 // use or other dealings in this Software without prior written authorization from the  Sophia-Antipolis University.
 // 
 // Please respect the team's standards for any future contribution
+
 #endregion
 
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 #nullable disable
 
-using System;
-using System.Threading.Tasks;
 using Gauniv.WebServer.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.Extensions.Logging;
 
 namespace Gauniv.WebServer.Areas.Identity.Pages.Account.Manage
 {
     public class ResetAuthenticatorModel : PageModel
     {
-        private readonly UserManager<User> _userManager;
-        private readonly SignInManager<User> _signInManager;
         private readonly ILogger<ResetAuthenticatorModel> _logger;
+        private readonly SignInManager<User> _signInManager;
+        private readonly UserManager<User> _userManager;
 
         public ResetAuthenticatorModel(
             UserManager<User> userManager,
@@ -66,7 +65,7 @@ namespace Gauniv.WebServer.Areas.Identity.Pages.Account.Manage
 
         public async Task<IActionResult> OnGet()
         {
-            var user = await _userManager.GetUserAsync(User);
+            User user = await _userManager.GetUserAsync(User);
             if (user == null)
             {
                 return NotFound($"Unable to load user with ID '{_userManager.GetUserId(User)}'.");
@@ -77,7 +76,7 @@ namespace Gauniv.WebServer.Areas.Identity.Pages.Account.Manage
 
         public async Task<IActionResult> OnPostAsync()
         {
-            var user = await _userManager.GetUserAsync(User);
+            User user = await _userManager.GetUserAsync(User);
             if (user == null)
             {
                 return NotFound($"Unable to load user with ID '{_userManager.GetUserId(User)}'.");
@@ -85,11 +84,12 @@ namespace Gauniv.WebServer.Areas.Identity.Pages.Account.Manage
 
             await _userManager.SetTwoFactorEnabledAsync(user, false);
             await _userManager.ResetAuthenticatorKeyAsync(user);
-            var userId = await _userManager.GetUserIdAsync(user);
+            string userId = await _userManager.GetUserIdAsync(user);
             _logger.LogInformation("User with ID '{UserId}' has reset their authentication app key.", user.Id);
 
             await _signInManager.RefreshSignInAsync(user);
-            StatusMessage = "Your authenticator app key has been reset, you will need to configure your authenticator app using the new key.";
+            StatusMessage =
+                "Your authenticator app key has been reset, you will need to configure your authenticator app using the new key.";
 
             return RedirectToPage("./EnableAuthenticator");
         }

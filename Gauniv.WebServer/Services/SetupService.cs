@@ -1,4 +1,5 @@
 ﻿#region Header
+
 // Cyril Tisserand
 // Projet Gauniv - WebServer
 // Gauniv 2025
@@ -25,22 +26,18 @@
 // use or other dealings in this Software without prior written authorization from the  Sophia-Antipolis University.
 // 
 // Please respect the team's standards for any future contribution
+
 #endregion
+
 using Gauniv.WebServer.Data;
-using Gauniv.WebServer.Websocket;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.VisualStudio.Web.CodeGenerators.Mvc.Templates.BlazorIdentity.Pages;
-using System.Text;
 
 namespace Gauniv.WebServer.Services
 {
     public class SetupService : IHostedService
     {
-        private ApplicationDbContext? applicationDbContext;
         private readonly IServiceProvider serviceProvider;
+        private ApplicationDbContext? applicationDbContext;
         private Task? task;
 
         public SetupService(IServiceProvider serviceProvider)
@@ -50,23 +47,22 @@ namespace Gauniv.WebServer.Services
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            using (var scope = serviceProvider.CreateScope()) // this will use `IServiceScopeFactory` internally
+            using (IServiceScope
+                   scope = serviceProvider.CreateScope()) // this will use `IServiceScopeFactory` internally
             {
                 applicationDbContext = scope.ServiceProvider.GetService<ApplicationDbContext>();
-                var userSignInManager = scope.ServiceProvider.GetService<UserManager<User>>();
-                var signInManager = scope.ServiceProvider.GetService<SignInManager<User>>();
+                UserManager<User>? userSignInManager = scope.ServiceProvider.GetService<UserManager<User>>();
+                SignInManager<User>? signInManager = scope.ServiceProvider.GetService<SignInManager<User>>();
 
                 if (applicationDbContext is null)
                 {
                     throw new Exception("ApplicationDbContext is null");
                 }
 
-                var r = userSignInManager?.CreateAsync(new User()
-                {
-                    UserName = "test@test.com",
-                    Email = "test@test.com",
-                    EmailConfirmed = true
-                }, "password").Result;
+                IdentityResult? r = userSignInManager
+                    ?.CreateAsync(
+                        new User { UserName = "test@test.com", Email = "test@test.com", EmailConfirmed = true },
+                        "password").Result;
 
                 // ....
 

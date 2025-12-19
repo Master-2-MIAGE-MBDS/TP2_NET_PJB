@@ -1,4 +1,5 @@
 ﻿#region Licence
+
 // Cyril Tisserand
 // Projet Gauniv - WebServer
 // Gauniv 2025
@@ -25,31 +26,28 @@
 // use or other dealings in this Software without prior written authorization from the  Sophia-Antipolis University.
 // 
 // Please respect the team's standards for any future contribution
+
 #endregion
+
 using Gauniv.WebServer.Data;
 using Gauniv.WebServer.Dtos;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Net.Http.Headers;
-using System.Text;
-using CommunityToolkit.HighPerformance.Memory;
-using CommunityToolkit.HighPerformance;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
-using System.ComponentModel.DataAnnotations;
 using MapsterMapper;
-using Mapster;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Gauniv.WebServer.Api
 {
     [Route("api/1.0.0/[controller]/[action]")]
     [ApiController]
-    public class GamesController(ApplicationDbContext appDbContext, IMapper mapper, UserManager<User> userManager, MappingProfile mp) : ControllerBase
+    public class GamesController(
+        ApplicationDbContext appDbContext,
+        IMapper mapper,
+        UserManager<User> userManager,
+        MappingProfile mp) : ControllerBase
     {
         private readonly ApplicationDbContext appDbContext = appDbContext;
         private readonly IMapper mapper = mapper;
-        private readonly UserManager<User> userManager = userManager;
         private readonly MappingProfile mp = mp;
+        private readonly UserManager<User> userManager = userManager;
     }
 }

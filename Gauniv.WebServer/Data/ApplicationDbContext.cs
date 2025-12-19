@@ -1,4 +1,5 @@
 ﻿#region Header
+
 // Cyril Tisserand
 // Projet Gauniv - WebServer
 // Gauniv 2025
@@ -25,8 +26,9 @@
 // use or other dealings in this Software without prior written authorization from the  Sophia-Antipolis University.
 // 
 // Please respect the team's standards for any future contribution
+
 #endregion
-using Microsoft.AspNetCore.Identity;
+
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -38,6 +40,9 @@ namespace Gauniv.WebServer.Data
             : base(options)
         {
         }
+
         public DbSet<Game> Games { get; set; }
+
+        public DbSet<Categorie> Categories { get; set; }
     }
 }

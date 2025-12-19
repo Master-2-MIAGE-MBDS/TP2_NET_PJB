@@ -1,4 +1,5 @@
 #region Header
+
 // Cyril Tisserand
 // Projet Gauniv - WebServer
 // Gauniv 2025
@@ -25,7 +26,9 @@
 // use or other dealings in this Software without prior written authorization from the  Sophia-Antipolis University.
 // 
 // Please respect the team's standards for any future contribution
+
 #endregion
+
 using Gauniv.WebServer.Data;
 using Gauniv.WebServer.Dtos;
 using Gauniv.WebServer.Security;
@@ -33,23 +36,26 @@ using Gauniv.WebServer.Services;
 using Gauniv.WebServer.Websocket;
 using Mapster;
 using Microsoft.AspNetCore.Authentication.BearerToken;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using System.Globalization;
+using SignInResult = Microsoft.AspNetCore.Identity.SignInResult;
+using System.IO;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 
 // Set the culture so that the culture is the same between front and back
-var cultureInfo = new CultureInfo("en-US");
+CultureInfo cultureInfo = new("en-US");
 CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
 CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
 
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 
 builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
@@ -66,14 +72,16 @@ builder.Services.Configure<RequestLocalizationOptions>(s =>
     ];
 });
 // Add services to the container.
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+string connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ??
+                          throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 /*builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));*/
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseInMemoryDatabase("Gauniv.db"));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-builder.Services.AddIdentityApiEndpoints<User>(options => {
+builder.Services.AddIdentityApiEndpoints<User>(options =>
+{
     options.SignIn.RequireConfirmedAccount = false;
     options.Password.RequireDigit = false;
     options.Password.RequiredLength = 1;
@@ -81,7 +89,8 @@ builder.Services.AddIdentityApiEndpoints<User>(options => {
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequireUppercase = false;
 }).AddRoles<IdentityRole>().AddEntityFrameworkStores<ApplicationDbContext>();
-builder.Services.AddControllersWithViews().AddViewLocalization(Microsoft.AspNetCore.Mvc.Razor.LanguageViewLocationExpanderFormat.Suffix).AddDataAnnotationsLocalization();
+builder.Services.AddControllersWithViews().AddViewLocalization(LanguageViewLocationExpanderFormat.Suffix)
+    .AddDataAnnotationsLocalization();
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
@@ -94,7 +103,7 @@ builder.Services.AddHostedService<OnlineService>();
 builder.Services.AddHostedService<SetupService>();
 builder.Services.AddScoped<MappingProfile, MappingProfile>();
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -117,50 +126,76 @@ app.UseAuthorization();
 app.MapStaticAssets();
 
 app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}")
+        "default",
+        "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
 
 app.MapRazorPages()
-   .WithStaticAssets();
+    .WithStaticAssets();
 
 app.MapOpenApi();
-app.MapGroup("Bearer").MapPost("/login", async Task<Results<Ok<AccessTokenResponse>, EmptyHttpResult, ProblemHttpResult>>
-            ([FromBody] LoginRequest login, [FromQuery] bool? useCookies, [FromQuery] bool? useSessionCookies, [FromServices] IServiceProvider sp) =>
+app.MapGroup("Bearer").MapPost("/login",
+    async Task<Results<Ok<AccessTokenResponse>, EmptyHttpResult, ProblemHttpResult>>
+    ([FromBody] LoginRequest login, [FromQuery] bool? useCookies, [FromQuery] bool? useSessionCookies,
+        [FromServices] IServiceProvider sp) =>
+    {
+        SignInManager<User> signInManager = sp.GetRequiredService<SignInManager<User>>();
+
+        bool useCookieScheme = useCookies == true || useSessionCookies == true;
+        bool isPersistent = useCookies == true && useSessionCookies != true;
+        signInManager.AuthenticationScheme =
+            useCookieScheme ? IdentityConstants.ApplicationScheme : IdentityConstants.BearerScheme;
+
+        SignInResult result = await signInManager.PasswordSignInAsync(login.Email, login.Password, isPersistent, true);
+
+        if (result.RequiresTwoFactor)
         {
-            var signInManager = sp.GetRequiredService<SignInManager<User>>();
-
-            var useCookieScheme = (useCookies == true) || (useSessionCookies == true);
-            var isPersistent = (useCookies == true) && (useSessionCookies != true);
-            signInManager.AuthenticationScheme = useCookieScheme ? IdentityConstants.ApplicationScheme : IdentityConstants.BearerScheme;
-
-            var result = await signInManager.PasswordSignInAsync(login.Email, login.Password, isPersistent, lockoutOnFailure: true);
-
-            if (result.RequiresTwoFactor)
+            if (!string.IsNullOrEmpty(login.TwoFactorCode))
             {
-                if (!string.IsNullOrEmpty(login.TwoFactorCode))
-                {
-                    result = await signInManager.TwoFactorAuthenticatorSignInAsync(login.TwoFactorCode, isPersistent, rememberClient: isPersistent);
-                }
-                else if (!string.IsNullOrEmpty(login.TwoFactorRecoveryCode))
-                {
-                    result = await signInManager.TwoFactorRecoveryCodeSignInAsync(login.TwoFactorRecoveryCode);
-                }
+                result = await signInManager.TwoFactorAuthenticatorSignInAsync(login.TwoFactorCode, isPersistent,
+                    isPersistent);
             }
-
-            if (!result.Succeeded)
+            else if (!string.IsNullOrEmpty(login.TwoFactorRecoveryCode))
             {
-                return TypedResults.Problem(result.ToString(), statusCode: StatusCodes.Status401Unauthorized);
+                result = await signInManager.TwoFactorRecoveryCodeSignInAsync(login.TwoFactorRecoveryCode);
             }
+        }
 
-            // The signInManager already produced the needed response in the form of a cookie or bearer token.
-            return TypedResults.Empty;
-        });
+        if (!result.Succeeded)
+        {
+            return TypedResults.Problem(result.ToString(), statusCode: StatusCodes.Status401Unauthorized);
+        }
+
+        // The signInManager already produced the needed response in the form of a cookie or bearer token.
+        return TypedResults.Empty;
+    });
 
 app.UseSwaggerUI(options =>
 {
     options.SwaggerEndpoint("/openapi/v1.json", "v1");
 });
 app.MapHub<OnlineHub>("/online");
+
+// Seed categories from ToDB_Categories.json
+{
+    using var scope = app.Services.CreateScope();
+    var services = scope.ServiceProvider;
+    try
+    {
+        var db = services.GetRequiredService<ApplicationDbContext>();
+        var loggerFactory = services.GetService<ILoggerFactory>();
+        var logger = loggerFactory?.CreateLogger("SeedDatabase");
+        var categoriesJsonPath = Path.Combine(app.Environment.ContentRootPath ?? Directory.GetCurrentDirectory(), "ToDB_Categories.json");
+        var gamesJsonPath = Path.Combine(app.Environment.ContentRootPath ?? Directory.GetCurrentDirectory(), "ToDB_Games.json");
+
+        // call the aggregated seeder and wait for completion (categories then games)
+        AddDataToDB_All.SeedAsync(db, categoriesJsonPath, gamesJsonPath, logger).GetAwaiter().GetResult();
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger("SeedDatabase");
+        logger?.LogError(ex, "An error occurred while seeding database on startup.");
+    }
+}
 
 app.Run();

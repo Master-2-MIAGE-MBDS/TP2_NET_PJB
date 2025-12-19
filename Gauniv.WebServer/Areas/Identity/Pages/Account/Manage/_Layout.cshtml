@@ -1,5 +1,5 @@
 ﻿@{
-    if (ViewData.TryGetValue("ParentLayout", out var parentLayout) && parentLayout !=  null)
+    if (ViewData.TryGetValue("ParentLayout", out var parentLayout) && parentLayout != null)
     {
         Layout = parentLayout.ToString();
     }
@@ -9,21 +9,27 @@
     }
 }
 
-<h1>Manage your account</h1>
+<h1 class="text-center">Manage your account</h1>
 
 <div>
-    <h2>Change your account settings</h2>
-    <hr />
-    <div class="row">
-        <div class="col-md-3">
-            <partial name="_ManageNav" />
-        </div>
-        <div class="col-md-9">
-            @RenderBody()
+    <h2 class="text-center">Change your account settings</h2>
+    <hr/>
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8 col-xl-6">
+            <section class="card shadow-sm mb-3">
+                <div class="card-body">
+                    <partial name="_ManageNav"/>
+                </div>
+            </section>
+            <section class="card shadow-sm">
+                <div class="card-body">
+                    @RenderBody()
+                </div>
+            </section>
         </div>
     </div>
 </div>
 
 @section Scripts {
-    @RenderSection("Scripts", required: false)
+    @RenderSection("Scripts", false)
 }

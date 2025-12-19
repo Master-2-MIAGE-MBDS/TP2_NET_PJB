@@ -1,23 +1,21 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
+
 #nullable disable
 
-using System;
-using System.ComponentModel.DataAnnotations;
-using System.Threading.Tasks;
 using Gauniv.WebServer.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.Extensions.Logging;
+using System.ComponentModel.DataAnnotations;
 
 namespace Gauniv.WebServer.Areas.Identity.Pages.Account.Manage
 {
     public class DeletePersonalDataModel : PageModel
     {
-        private readonly UserManager<User> _userManager;
-        private readonly SignInManager<User> _signInManager;
         private readonly ILogger<DeletePersonalDataModel> _logger;
+        private readonly SignInManager<User> _signInManager;
+        private readonly UserManager<User> _userManager;
 
         public DeletePersonalDataModel(
             UserManager<User> userManager,
@@ -40,26 +38,11 @@ namespace Gauniv.WebServer.Areas.Identity.Pages.Account.Manage
         ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
         ///     directly from your code. This API may change or be removed in future releases.
         /// </summary>
-        public class InputModel
-        {
-            /// <summary>
-            ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-            ///     directly from your code. This API may change or be removed in future releases.
-            /// </summary>
-            [Required]
-            [DataType(DataType.Password)]
-            public string Password { get; set; }
-        }
-
-        /// <summary>
-        ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-        ///     directly from your code. This API may change or be removed in future releases.
-        /// </summary>
         public bool RequirePassword { get; set; }
 
         public async Task<IActionResult> OnGet()
         {
-            var user = await _userManager.GetUserAsync(User);
+            User user = await _userManager.GetUserAsync(User);
             if (user == null)
             {
                 return NotFound($"Unable to load user with ID '{_userManager.GetUserId(User)}'.");
@@ -71,7 +54,7 @@ namespace Gauniv.WebServer.Areas.Identity.Pages.Account.Manage
 
         public async Task<IActionResult> OnPostAsync()
         {
-            var user = await _userManager.GetUserAsync(User);
+            User user = await _userManager.GetUserAsync(User);
             if (user == null)
             {
                 return NotFound($"Unable to load user with ID '{_userManager.GetUserId(User)}'.");
@@ -87,11 +70,11 @@ namespace Gauniv.WebServer.Areas.Identity.Pages.Account.Manage
                 }
             }
 
-            var result = await _userManager.DeleteAsync(user);
-            var userId = await _userManager.GetUserIdAsync(user);
+            IdentityResult result = await _userManager.DeleteAsync(user);
+            string userId = await _userManager.GetUserIdAsync(user);
             if (!result.Succeeded)
             {
-                throw new InvalidOperationException($"Unexpected error occurred deleting user.");
+                throw new InvalidOperationException("Unexpected error occurred deleting user.");
             }
 
             await _signInManager.SignOutAsync();
@@ -99,6 +82,21 @@ namespace Gauniv.WebServer.Areas.Identity.Pages.Account.Manage
             _logger.LogInformation("User with ID '{UserId}' deleted themselves.", userId);
 
             return Redirect("~/");
+        }
+
+        /// <summary>
+        ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
+        ///     directly from your code. This API may change or be removed in future releases.
+        /// </summary>
+        public class InputModel
+        {
+            /// <summary>
+            ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
+            ///     directly from your code. This API may change or be removed in future releases.
+            /// </summary>
+            [Required]
+            [DataType(DataType.Password)]
+            public string Password { get; set; }
         }
     }
 }
