@@ -34,20 +34,78 @@ using Gauniv.WebServer.Dtos;
 using MapsterMapper;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Gauniv.WebServer.Api
 {
     [Route("api/1.0.0/[controller]/[action]")]
     [ApiController]
-    public class GamesController(
-        ApplicationDbContext appDbContext,
-        IMapper mapper,
-        UserManager<User> userManager,
-        MappingProfile mp) : ControllerBase
+    public class GamesController : ControllerBase
     {
-        private readonly ApplicationDbContext appDbContext = appDbContext;
-        private readonly IMapper mapper = mapper;
-        private readonly MappingProfile mp = mp;
-        private readonly UserManager<User> userManager = userManager;
+        private readonly ApplicationDbContext _db;
+        private readonly IMapper _mapper;
+        private readonly UserManager<User> _userManager;
+        private readonly MappingProfile _mp;
+
+        public GamesController(ApplicationDbContext appDbContext, IMapper mapper, UserManager<User> userManager, MappingProfile mp)
+        {
+            _db = appDbContext;
+            _mapper = mapper;
+            _userManager = userManager;
+            _mp = mp;
+        }
+
+        /// <summary>
+        /// Liste toutes les catégories disponibles.
+        /// </summary>
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<CategorieDtoLight>>> Categories()
+        {
+            var cats = await _db.Categories
+                .OrderBy(c => c.Libelle)
+                .Select(c => new CategorieDtoLight { Libelle = c.Libelle })
+                .ToListAsync();
+
+            return Ok(cats);
+        }
+
+        /// <summary>
+        /// Liste des jeux avec pagination et filtrage par catégories.
+        /// Query examples:
+        /// /api/1.0.0/games/games?offset=10&limit=15
+        /// /api/1.0.0/games/games?category=3
+        /// /api/1.0.0/games/games?category[]=3&category[]=4
+        /// /api/1.0.0/games/games?offset=10&limit=15&category[]=3
+        /// </summary>
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<GameDtoLight>>> Games([FromQuery] int? offset, [FromQuery] int? limit, [FromQuery(Name = "category")] int[]? category, [FromQuery(Name = "category[]")] int[]? categoryArray)
+        {
+            // determine categories from either ?category= or ?category[]=
+            var categories = (categoryArray != null && categoryArray.Length > 0) ? categoryArray : (category != null && category.Length > 0 ? category : Array.Empty<int>());
+            IQueryable<Game> query = _db.Games.AsQueryable();
+            if (categories != null && categories.Length > 0)
+            {
+                query = query.Where(g => g.Categories.Any(c => categories.Contains(c.Id)));
+            }
+            // default pagination
+            int skip = offset.GetValueOrDefault(0);
+            int take = limit.GetValueOrDefault(20);
+            if (take <= 0) take = 20;
+            var items = await query
+                .Include(g => g.Categories)
+                .OrderBy(g => g.Name)
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync();
+            var dtos = items.Select(g => new GameDtoLight
+            {
+                Id = g.Id.ToString(),
+                Name = g.Name,
+                Description = g.Description,
+                Price = g.Price
+            }).ToList();
+
+            return Ok(dtos);
+        }
     }
 }
