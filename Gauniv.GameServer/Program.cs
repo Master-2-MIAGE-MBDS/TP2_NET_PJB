@@ -8,7 +8,12 @@ Console.WriteLine();
 
 
 const int DEFAULT_PORT = 7777;
-int port = (args.Length > 0 && int.TryParse(args[0], out int parsedPort)) ? parsedPort : DEFAULT_PORT;
+const string PORT_ENV_VAR = "GAMESERVER_PORT";
+
+string? envPort = Environment.GetEnvironmentVariable(PORT_ENV_VAR);
+int port = (args.Length > 0 && int.TryParse(args[0], out int parsedPort))
+    ? parsedPort
+    : (!string.IsNullOrWhiteSpace(envPort) && int.TryParse(envPort, out int parsedEnvPort) ? parsedEnvPort : DEFAULT_PORT);
 
 Console.WriteLine($"Configuration:\n  - Port: {port}\n  - Protocol: TCP avec MessagePack\n");
 
