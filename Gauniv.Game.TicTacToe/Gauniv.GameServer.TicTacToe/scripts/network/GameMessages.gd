@@ -5,6 +5,7 @@ enum MessageType {
 	# Messages client -> serveur
 	PlayerConnect = 1,
 	PlayerDisconnect = 2,
+	PlayerForfeit = 3,
 	CreateGame = 12,
 	ListGames = 13,
 	JoinGame = 14,

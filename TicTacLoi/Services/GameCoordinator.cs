@@ -1126,7 +1126,15 @@ public class GameCoordinator
         
         if (forfeitConnection != null)
         {
-            await SendGameLooseAsync(forfeitConnection, winData);
+            try
+            {
+                await SendGameLooseAsync(forfeitConnection, winData);
+            }
+            catch (Exception ex)
+            {
+                // Normal si le joueur s'est déconnecté
+                Console.WriteLine($"[Coordinator] Impossible d'envoyer le message de défaite au joueur déconnecté: {ex.Message}");
+            }
         }
 
         // Broadcast à toute la room la fin de la partie
