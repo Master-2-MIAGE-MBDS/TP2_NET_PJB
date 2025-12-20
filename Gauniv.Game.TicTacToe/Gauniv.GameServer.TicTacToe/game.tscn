@@ -46,7 +46,6 @@ theme_override_font_sizes/font_size = 90
 text = "En local"
 
 [node name="SelectionMenu" type="Control" parent="."]
-visible = false
 layout_mode = 3
 anchors_preset = 0
 offset_left = 416.0
