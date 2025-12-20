@@ -8,6 +8,7 @@ public enum MessageType
     // Messages client -> serveur
     PlayerConnect = 1,
     PlayerDisconnect = 2,
+    PlayerForfeit = 3,
 
     // Lobby / salon
     CreateGame = 12,

@@ -118,9 +118,12 @@ func _apply_player_names(name_x: String, name_o: String):
 func _get_display_name_for_cell(cell: String) -> String:
 	return player_name_x if cell == GameConfig.CELL_X else player_name_o
 
-func _show_result_label_for_name(name: String):
+func _show_result_label_for_name(name: String, is_forfeit: bool = false):
 	var display = name if name != "" else "Un joueur"
-	label_result.text = display + " gagne !"
+	if is_forfeit:
+		label_result.text = display + " gagne\npar forfait !"
+	else:
+		label_result.text = display + " gagne !"
 	label_result.visible = true
 
 func _hide_result_label():

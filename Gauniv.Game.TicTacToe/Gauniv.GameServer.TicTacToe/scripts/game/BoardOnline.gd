@@ -28,6 +28,7 @@ func start_online_game_as_host(character: String):
 	_reset_board()
 	_set_buttons_enabled(false)
 	_show_waiting_label()
+	button_back.visible = false
 	_setup_tcp_connection()
 	online_manager.start_listening()
 
@@ -42,6 +43,7 @@ func start_online_game_as_guest(game_data: Dictionary):
 	_reset_board()
 	if game_data.has("boardstate"):
 		_apply_boardstate(game_data["boardstate"])
+	button_back.visible = false
 	_setup_tcp_connection()
 	online_manager.start_listening()
 
@@ -163,15 +165,20 @@ func _apply_boardstate(boardstate: Dictionary):
 		_play_move_sound(last_player_who_moved, false)
 	
 	if winner != null:
-		_handle_remote_victory(winner, winner_name)
+		# Vérifier si c'est une victoire par forfait ou une victoire normale
+		var winner_pawns = x_pawns if winner == player_x_id else o_pawns
+		var has_winning_line = GameConfig.check_winner_from_pawns(winner_pawns)
+		var is_forfeit = not has_winning_line
+		_handle_remote_victory(winner, winner_name, is_forfeit)
 	else:
 		var is_my_turn = (current_player == GameConfig.my_player_role)
 		_set_buttons_enabled(is_my_turn and not game_ended)
 		_hide_result_label()
 
-func _handle_remote_victory(winner: String, winner_name: String):
+func _handle_remote_victory(winner: String, winner_name: String, is_forfeit: bool = false):
 	game_ended = true
 	button_restart.visible = true
+	button_back.visible = true
 	online_manager.stop_polling()
 	var display_name = winner_name
 	if display_name == "" and pending_winner_name != "":
@@ -183,16 +190,31 @@ func _handle_remote_victory(winner: String, winner_name: String):
 			display_name = player_name_x
 		elif winner == player_o_id:
 			display_name = player_name_o
-	_show_result_label_for_name(display_name)
+	_show_result_label_for_name(display_name, is_forfeit)
 	pending_winner_id = ""
 	pending_winner_name = ""
 
 func _handle_game_finished(data: Dictionary):
 	game_ended = true
 	button_restart.visible = true
+	button_back.visible = true
 	_set_buttons_enabled(false)
 	pending_winner_id = data.get("WinnerId", "")
 	pending_winner_name = data.get("WinnerName", "")
+	var winning_positions = data.get("WinningPositions", [])
+	var is_forfeit = (winning_positions == null or (winning_positions is Array and winning_positions.size() == 0))
+	
+	# Si c'est un forfait, on peut afficher tout de suite
+	if is_forfeit and pending_winner_id != "":
+		_handle_remote_victory(pending_winner_id, pending_winner_name, true)
+	else:
+		# Victoire normale : vérifier si on a déjà la ligne gagnante sur le board local
+		# (cas de l'hôte qui vient de jouer son coup gagnant)
+		var winner_pawns = x_pawns if pending_winner_id == player_x_id else o_pawns
+		if GameConfig.check_winner_from_pawns(winner_pawns):
+			# On a déjà le board à jour, afficher la victoire maintenant
+			_handle_remote_victory(pending_winner_id, pending_winner_name, false)
+		# Sinon, on attend le sync du board pour afficher le dernier coup et la victoire
 
 func _on_game_won(data: Dictionary):
 	_handle_game_finished(data)

@@ -164,7 +164,7 @@ offset_right = 1320.0
 offset_bottom = 120.0
 scale = Vector2(1.08, 1.08)
 theme_override_font_sizes/font_size = 80
-text = "Tic-Tac-Droite"
+text = "Tic-Tac-Loi"
 horizontal_alignment = 1
 vertical_alignment = 1
 

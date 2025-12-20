@@ -119,6 +119,10 @@ public class GameCoordinator
                 await HandlePlayerDisconnectAsync(connection, message);
                 break;
 
+            case MessageType.PlayerForfeit:
+                await HandlePlayerForfeitAsync(connection, message);
+                break;
+
             case MessageType.CreateGame:
                 await HandleCreateGameAsync(connection, message);
                 break;
@@ -539,6 +543,47 @@ public class GameCoordinator
 
 
     /// <summary>
+    /// Gère le forfait explicite d'un joueur
+    /// </summary>
+    private async Task HandlePlayerForfeitAsync(PlayerConnection connection, GameMessage message)
+    {
+        if (connection.PlayerId == null) return;
+
+        string? roomId;
+        lock (_mapLock)
+        {
+            _playerRoomMap.TryGetValue(connection.PlayerId, out roomId);
+        }
+
+        if (roomId == null)
+        {
+            await SendErrorAsync(connection, "NOT_IN_ROOM", "Vous n'êtes pas dans une partie");
+            return;
+        }
+
+        GameRoom? room;
+        lock (_roomsLock)
+        {
+            _rooms.TryGetValue(roomId, out room);
+        }
+
+        if (room == null)
+        {
+            await SendErrorAsync(connection, "ROOM_NOT_FOUND", "Partie introuvable");
+            return;
+        }
+
+        if (room.GameStatus != GameStatus.IN_PROGRESS)
+        {
+            await SendErrorAsync(connection, "GAME_NOT_IN_PROGRESS", "La partie n'est pas en cours");
+            return;
+        }
+
+        Console.WriteLine($"[Coordinator] Forfait explicite de {connection.PlayerName} dans la room {roomId[..8]}...");
+        await HandleForfeitAsync(roomId, connection.PlayerId);
+    }
+
+    /// <summary>
     /// Gère la déconnexion d'un client
     /// </summary>
     private async Task HandlePlayerDisconnectAsync(PlayerConnection connection, GameMessage message)
@@ -553,14 +598,11 @@ public class GameCoordinator
     {
         if (connection.PlayerId == null) return;
 
-        // Retirer des connections
-        lock (_connectionsLock)
-        {
-            _allConnections.Remove(connection.PlayerId);
-        }
-
         // Retirer de la room si présent
         string? roomId;
+        GameRoom? room = null;
+        bool isPlayerInGame = false;
+        
         lock (_mapLock)
         {
             _playerRoomMap.TryGetValue(connection.PlayerId, out roomId);
@@ -571,19 +613,41 @@ public class GameCoordinator
         {
             lock (_roomsLock)
             {
-                if (_rooms.TryGetValue(roomId, out var room))
+                if (_rooms.TryGetValue(roomId, out room))
                 {
+                    // Vérifier si c'est un joueur actif (pas spectateur) dans une partie en cours
+                    isPlayerInGame = room.PlayerIds.Contains(connection.PlayerId) && 
+                                    room.GameStatus == GameStatus.IN_PROGRESS;
+                    
                     room.PlayerIds.Remove(connection.PlayerId);
                     room.SpectatorIds.Remove(connection.PlayerId);
-
-                    // Supprimer la room si vide
-                    if (room.TotalPlayers == 0)
-                    {
-                        _rooms.Remove(roomId);
-                        Console.WriteLine($"[Coordinator] Room vide supprimée: {roomId[..8]}...");
-                    }
                 }
             }
+        }
+
+        // Si un joueur quitte pendant une partie en cours, c'est un forfait
+        if (isPlayerInGame && room != null)
+        {
+            Console.WriteLine($"[Coordinator] Forfait détecté pour {connection.PlayerName} dans la room {roomId[..8]}...");
+            await HandleForfeitAsync(roomId, connection.PlayerId);
+        }
+        else if (roomId != null && room != null)
+        {
+            lock (_roomsLock)
+            {
+                // Supprimer la room si vide
+                if (room.TotalPlayers == 0)
+                {
+                    _rooms.Remove(roomId);
+                    Console.WriteLine($"[Coordinator] Room vide supprimée: {roomId[..8]}...");
+                }
+            }
+        }
+
+        // Retirer des connections
+        lock (_connectionsLock)
+        {
+            _allConnections.Remove(connection.PlayerId);
         }
 
         Console.WriteLine($"[Coordinator] Joueur déconnecté: {connection.PlayerName}");
@@ -1006,6 +1070,85 @@ public class GameCoordinator
     /// <summary>
     /// Vérifie s'il y a un gagnant
     /// </summary>
+    /// <summary>
+    /// Gère le forfait d'un joueur et déclare l'autre joueur comme vainqueur
+    /// </summary>
+    private async Task HandleForfeitAsync(string roomId, string forfeitPlayerId)
+    {
+        GameRoom? room;
+        lock (_roomsLock)
+        {
+            if (!_rooms.TryGetValue(roomId, out room))
+                return;
+        }
+
+        // Marquer la partie comme terminée
+        room.GameStatus = GameStatus.FINISHED;
+
+        // Trouver le joueur restant (le vainqueur)
+        var remainingPlayerId = room.PlayerIds.FirstOrDefault(id => id != forfeitPlayerId);
+        
+        if (remainingPlayerId == null)
+        {
+            Console.WriteLine($"[Coordinator] Aucun joueur restant pour déclarer vainqueur");
+            return;
+        }
+
+        room.WinnerId = remainingPlayerId;
+        
+        var winData = new GameWonData
+        {
+            WinnerId = remainingPlayerId,
+            WinnerName = GetPlayerName(remainingPlayerId),
+            WinningPositions = Array.Empty<int>() // Pas de positions gagnantes pour un forfait
+        };
+
+        Console.WriteLine($"[Coordinator] Victoire par forfait de {winData.WinnerName}!");
+
+        // Envoyer la victoire au joueur restant
+        PlayerConnection? winnerConnection;
+        lock (_connectionsLock)
+        {
+            _allConnections.TryGetValue(remainingPlayerId, out winnerConnection);
+        }
+        
+        if (winnerConnection != null)
+        {
+            await SendGameWonAsync(winnerConnection, winData);
+        }
+
+        // Envoyer la défaite au joueur qui a abandonné (s'il est encore connecté)
+        PlayerConnection? forfeitConnection;
+        lock (_connectionsLock)
+        {
+            _allConnections.TryGetValue(forfeitPlayerId, out forfeitConnection);
+        }
+        
+        if (forfeitConnection != null)
+        {
+            try
+            {
+                await SendGameLooseAsync(forfeitConnection, winData);
+            }
+            catch (Exception ex)
+            {
+                // Normal si le joueur s'est déconnecté
+                Console.WriteLine($"[Coordinator] Impossible d'envoyer le message de défaite au joueur déconnecté: {ex.Message}");
+            }
+        }
+
+        // Broadcast à toute la room la fin de la partie
+        await BroadcastToRoomAsync(roomId, new GameMessage
+        {
+            Type = MessageType.GameEnded,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Data = MessagePackSerializer.Serialize(winData)
+        });
+        
+        // Envoyer l'état final aux spectateurs
+        await BroadcastSyncToSpectatorsAsync(roomId);
+    }
+
     private WinnerInfo? CheckWinner(GameRoom room)
     {
         // Combinaisons gagnantes (lignes, colonnes, diagonales)
