@@ -217,7 +217,10 @@ app.MapHub<OnlineHub>("/online");
         var gamesJsonPath = Path.Combine(app.Environment.ContentRootPath ?? Directory.GetCurrentDirectory(), "ToDB_Games.json");
 
         // call the aggregated seeder and wait for completion (categories then games)
-        AddDataToDB_All.SeedAsync(db, categoriesJsonPath, gamesJsonPath, logger).GetAwaiter().GetResult();
+        // Try to get identity managers to seed users as well
+        var userManager = services.GetService<UserManager<User>>();
+        var roleManager = services.GetService<RoleManager<IdentityRole>>();
+        AddDataToDB_All.SeedAsync(db, categoriesJsonPath, gamesJsonPath, userManager, roleManager, logger).GetAwaiter().GetResult();
     }
     catch (Exception ex)
     {

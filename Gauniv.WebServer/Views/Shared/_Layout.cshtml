@@ -6,7 +6,7 @@
     <title>@ViewData["Title"] - Gauniv.WebServer</title>
     <script type="importmap"></script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css"/>
-    @if (User?.Identity?.IsAuthenticated is not null or false)
+    @if (User?.Identity?.IsAuthenticated == true)
     {
         <script src="~/js/signalr/dist/browser/signalr.js"></script>
         <script src="~/js/online.js"></script>
@@ -36,6 +36,13 @@
                     <li class="nav-item">
                         <a class="nav-link text-dark" asp-area="" asp-controller="Game" asp-action="Index">Jeux</a>
                     </li>
+                    @* Onglet Gestion visible seulement pour les admins *@
+                    @if (User?.Identity?.IsAuthenticated == true && User.IsInRole("Admin"))
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Admin" asp-action="Index">Gestion</a>
+                        </li>
+                    }
                     <li class="nav-item">
                         <a class="nav-link text-dark" asp-area="" asp-controller="swagger"
                            asp-action="index">Swagger</a>

@@ -1,0 +1,19 @@
+﻿[
+  {
+    "UserName": "client@test.local",
+    "Email": "client@test.local",
+    "FirstName": "Client",
+    "LastName": "Test",
+    "Password": "Pa$$w0rdClient!",
+    "Roles": ["User"]
+  },
+  {
+    "UserName": "admin@test.local",
+    "Email": "admin@test.local",
+    "FirstName": "Admin",
+    "LastName": "Test",
+    "Password": "Pa$$w0rdAdmin!",
+    "Roles": ["Admin"]
+  }
+]
+

@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.IO;
 using Gauniv.WebServer.Data;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 
 namespace Gauniv.WebServer.Services
@@ -12,7 +14,7 @@ namespace Gauniv.WebServer.Services
     /// </summary>
     public static class AddDataToDB_All
     {
-        public static async Task SeedAsync(ApplicationDbContext db, string categoriesJsonPath, string gamesJsonPath, ILogger? logger = null, CancellationToken cancellationToken = default)
+        public static async Task SeedAsync(ApplicationDbContext db, string categoriesJsonPath, string gamesJsonPath, UserManager<User>? userManager = null, RoleManager<IdentityRole>? roleManager = null, ILogger? logger = null, CancellationToken cancellationToken = default)
         {
             if (db is null) throw new ArgumentNullException(nameof(db));
 
@@ -25,6 +27,21 @@ namespace Gauniv.WebServer.Services
             {
                 logger?.LogError(ex, "An error occurred while seeding categories from {path}", categoriesJsonPath);
                 throw;
+            }
+
+            // Seed users if identity managers provided
+            if (userManager != null && roleManager != null)
+            {
+                try
+                {
+                    var usersJsonPath = Path.Combine(AppContext.BaseDirectory, "ToDB_User.json");
+                    await AddDataToDB_Users.SeedAsync(db, usersJsonPath, userManager, roleManager, logger, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogError(ex, "An error occurred while seeding users");
+                    throw;
+                }
             }
 
             // Then seed games (they will attach to existing categories)
@@ -40,4 +57,3 @@ namespace Gauniv.WebServer.Services
         }
     }
 }
-
