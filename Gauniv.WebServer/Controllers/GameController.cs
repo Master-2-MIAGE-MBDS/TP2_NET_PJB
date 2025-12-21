@@ -36,21 +36,26 @@ namespace Gauniv.WebServer.Controllers
             // Appliquer le filtre de possession si demandé et si l'utilisateur est authentifié
             var user = await _userManager.GetUserAsync(User);
             bool isAuthenticated = user != null;
-            
-            if (onlyOwned && isAuthenticated)
+
+            // Récupérer purchasedIds si utilisateur authentifié (utilisé pour le filtre et pour le DTO)
+            List<int> purchasedIds = new List<int>();
+            if (isAuthenticated)
             {
-                _logger?.LogInformation("Applying 'OnlyOwned' filter for user {UserId}", user!.Id);
-                // Récupérer les IDs des jeux achetés par l'utilisateur (à partir de PurchasedGames sur l'entité User)
-                var userId = user!.Id; // user est non-null ici car isAuthenticated == true
-                var purchasedIds = await _db.Users
+                var userId = user!.Id;
+                purchasedIds = await _db.Users
                     .Where(u => u.Id == userId)
                     .SelectMany(u => u.PurchasedGames.Select(pg => pg.Id))
                     .ToListAsync();
+            }
+
+            if (onlyOwned && isAuthenticated)
+            {
+                _logger?.LogInformation("Applying 'OnlyOwned' filter for user {UserId}", user!.Id);
 
                 // Si aucun jeu acheté, retourner une requête vide (aucun jeu)
                 if (purchasedIds.Count == 0)
                 {
-                    _logger?.LogInformation("User {UserId} has no purchased games.", userId);
+                    _logger?.LogInformation("User {UserId} has no purchased games.", user.Id);
                     query = query.Where(g => false);
                 }
                 else
@@ -96,7 +101,8 @@ namespace Gauniv.WebServer.Controllers
                 Name = g.Name,
                 Description = g.Description,
                 Price = g.Price,
-                Categories = g.Categories.Select(c => new CategorieDtoLight { Libelle = c.Libelle }).ToList()
+                Categories = g.Categories.Select(c => new CategorieDtoLight { Libelle = c.Libelle }).ToList(),
+                Purchased = purchasedIds.Contains(g.Id)
             }).ToList();
 
             // Renseigner les filtres sélectionnés

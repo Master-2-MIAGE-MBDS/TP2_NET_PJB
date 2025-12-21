@@ -32,6 +32,7 @@
 using Gauniv.WebServer.Data;
 using Gauniv.WebServer.Dtos;
 using MapsterMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -39,6 +40,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace Gauniv.WebServer.Api
 {
@@ -51,14 +53,16 @@ namespace Gauniv.WebServer.Api
         private readonly UserManager<User> _userManager;
         private readonly MappingProfile _mp;
         private readonly IConfiguration _config;
+        private readonly ILogger<GameController> _logger;
 
-        public GameController(ApplicationDbContext appDbContext, IMapper mapper, UserManager<User> userManager, MappingProfile mp, IConfiguration config)
+        public GameController(ApplicationDbContext appDbContext, IMapper mapper, UserManager<User> userManager, MappingProfile mp, IConfiguration config, ILogger<GameController> logger)
         {
             _db = appDbContext;
             _mapper = mapper;
             _userManager = userManager;
             _mp = mp;
             _config = config;
+            _logger = logger;
         }
 
         /// <summary>
@@ -212,6 +216,68 @@ namespace Gauniv.WebServer.Api
             }).ToList();
 
             return Ok(dtos);
+        }
+        
+        /// <summary>
+        /// Permet à l'utilisateur authentifié d'acheter un jeu (ajoute le jeu à PurchasedGames de l'utilisateur).
+        /// POST /api/1.0.0/game/{id}/purchase
+        /// </summary>
+        [HttpPost("{id:int}")]
+        [Authorize]
+        public async Task<IActionResult> Purchase(int id)
+        {
+            _logger?.LogInformation("Purchase request for game {GameId}", id);
+            // Récupérer le jeu
+            var game = await _db.Games.FindAsync(id);
+            if (game == null)
+            {
+                _logger?.LogWarning("Purchase failed: game {GameId} not found", id);
+                return NotFound(new { message = "Jeu introuvable." });
+            }
+
+            // Get current user id from ClaimsPrincipal
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                _logger?.LogWarning("Purchase failed: user not authenticated");
+                return Unauthorized(new { message = "Utilisateur non authentifié." });
+            }
+
+            // Load user via the same DbContext to ensure EF tracking is consistent
+            var dbUser = await _db.Users.Include(u => u.PurchasedGames).FirstOrDefaultAsync(u => u.Id == userId);
+            if (dbUser == null)
+            {
+                _logger?.LogWarning("Purchase failed: user {UserId} not found in DB", userId);
+                return Unauthorized(new { message = "Utilisateur introuvable." });
+            }
+
+            try
+            {
+                // Vérifier s'il possède déjà le jeu
+                if (dbUser.PurchasedGames.Any(g => g.Id == id))
+                {
+                    _logger?.LogInformation("Purchase skipped: user {UserId} already owns game {GameId}", dbUser.Id, id);
+                    return Conflict(new { message = "Vous possédez déjà ce jeu." });
+                }
+
+                // Attacher le jeu à l'utilisateur (game est déjà attaché via FindAsync)
+                dbUser.PurchasedGames.Add(game);
+
+                await _db.SaveChangesAsync();
+
+                _logger?.LogInformation("Purchase succeeded: user {UserId} bought game {GameId}", dbUser.Id, id);
+                return Ok(new { message = "Achat effectué." });
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger?.LogError(ex, "Database update error during purchase for user {UserId} game {GameId}", dbUser?.Id, id);
+                return StatusCode(500, new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Unexpected error during purchase for user {UserId} game {GameId}", dbUser?.Id, id);
+                return StatusCode(500, new { message = ex.Message });
+            }
         }
     }
 }
