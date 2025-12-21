@@ -124,6 +124,26 @@ namespace Gauniv.WebServer.Controllers
             return View(vm);
         }
 
+        // Statistics page: total games and games per category
+        public async Task<IActionResult> Stats()
+        {
+            var vm = new Gauniv.WebServer.Models.GameStatsViewModel();
+
+            vm.TotalGames = await _db.Games.CountAsync();
+
+            vm.GamesPerCategory = await _db.Categories
+                .Select(c => new Gauniv.WebServer.Models.GameStatsViewModel.CategoryCount
+                {
+                    CategoryId = c.Id,
+                    Libelle = c.Libelle,
+                    Count = c.Games.Count()
+                })
+                .OrderByDescending(x => x.Count)
+                .ToListAsync();
+
+            return View("~/Views/Game/Stats.cshtml", vm);
+        }
+
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
