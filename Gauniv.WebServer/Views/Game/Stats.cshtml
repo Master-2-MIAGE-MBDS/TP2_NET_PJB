@@ -1,0 +1,29 @@
+﻿@model Gauniv.WebServer.Models.GameStatsViewModel
+@{
+    ViewData["Title"] = "Statistiques des jeux";
+}
+<h2>Statistiques de la librairie</h2>
+<div class="mb-3">
+    <strong>Total de jeux :</strong> @Model.TotalGames
+</div>
+<div>
+    <h4>Jeux par catégorie</h4>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Catégorie</th>
+                <th>Nombre de jeux</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach(var c in Model.GamesPerCategory)
+            {
+                <tr>
+                    <td>@c.Libelle</td>
+                    <td>@c.Count</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
