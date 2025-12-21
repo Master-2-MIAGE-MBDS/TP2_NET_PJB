@@ -14,6 +14,9 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true"/>
     <link rel="stylesheet" href="~/Gauniv.WebServer.styles.css" asp-append-version="true"/>
 
+    @* Render optional per-page styles *@
+    @RenderSection("Styles", required: false)
+
 </head>
 <body>
 <header>

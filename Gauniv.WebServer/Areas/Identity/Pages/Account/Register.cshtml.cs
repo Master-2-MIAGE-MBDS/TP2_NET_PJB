@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+﻿﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
 #nullable disable
@@ -74,6 +74,11 @@ namespace Gauniv.WebServer.Areas.Identity.Pages.Account
             {
                 User user = CreateUser();
 
+                // assign firstname/lastname if provided
+                // Input may now contain FirstName/LastName (added below in InputModel)
+                if (!string.IsNullOrWhiteSpace(Input?.FirstName)) user.FirstName = Input.FirstName;
+                if (!string.IsNullOrWhiteSpace(Input?.LastName)) user.LastName = Input.LastName;
+
                 await _userStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
                 await _emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
                 IdentityResult result = await _userManager.CreateAsync(user, Input.Password);
@@ -143,6 +148,14 @@ namespace Gauniv.WebServer.Areas.Identity.Pages.Account
         /// </summary>
         public class InputModel
         {
+            [Required]
+            [Display(Name = "First name")]
+            public string FirstName { get; set; }
+
+            [Required]
+            [Display(Name = "Last name")]
+            public string LastName { get; set; }
+
             /// <summary>
             ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
             ///     directly from your code. This API may change or be removed in future releases.
