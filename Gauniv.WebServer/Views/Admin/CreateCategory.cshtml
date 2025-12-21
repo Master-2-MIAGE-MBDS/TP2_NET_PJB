@@ -1,0 +1,15 @@
+﻿@model Gauniv.WebServer.Data.Categorie
+@{
+    ViewData["Title"] = "Créer catégorie";
+}
+<h2>Créer une catégorie</h2>
+<form method="post" asp-action="CreateCategory">
+    <div class="mb-3">
+        <label class="form-label">Libellé</label>
+        <input asp-for="Libelle" class="form-control" />
+        <span asp-validation-for="Libelle" class="text-danger"></span>
+    </div>
+    <button class="btn btn-primary">Créer</button>
+    <a class="btn btn-secondary" href="@Url.Action("Index","Admin", new { section = "categories" })">Annuler</a>
+</form>
+

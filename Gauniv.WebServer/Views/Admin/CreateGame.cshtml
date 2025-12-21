@@ -1,0 +1,98 @@
+﻿@model Gauniv.WebServer.Data.Game
+@{
+    ViewData["Title"] = "Créer jeu";
+    var allCats = ViewData["AllCategories"] as List<Gauniv.WebServer.Data.Categorie> ?? new();
+}
+<h2>Créer un jeu</h2>
+<form method="post" asp-action="CreateGame">
+    <div class="mb-3">
+        <label class="form-label">Nom</label>
+        <input asp-for="Name" class="form-control" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Description</label>
+        <textarea asp-for="Description" class="form-control"></textarea>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Prix</label>
+        <input asp-for="Price" class="form-control price-input" step="0.01" inputmode="decimal" pattern="^\d+(?:[\.,]\d{1,2})?$" value="@(Model.Price == 0 ? string.Empty : Model.Price.ToString("0.##"))" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Catégories</label>
+        <div class="list-group categories-checkbox-list">
+            @foreach(var c in allCats)
+            {
+                var checkboxId = "cat_" + c.Id;
+                <label class="list-group-item d-flex justify-content-between align-items-center category-item" for="@checkboxId">
+                    <div>
+                        <input type="checkbox" id="@checkboxId" name="selectedCategories" value="@c.Id" class="form-check-input me-2 category-checkbox" />
+                        <span class="category-label">@c.Libelle</span>
+                    </div>
+                    <span class="category-emoji" aria-hidden="true"></span>
+                </label>
+            }
+        </div>
+    </div>
+    <button class="btn btn-primary">Créer</button>
+    <a class="btn btn-secondary" href="@Url.Action("Index","Admin", new { section = "games" })">Annuler</a>
+</form>
+
+@section Styles {
+    <style>
+        .category-item { cursor: pointer; }
+        .category-item .category-emoji { font-size: 1.1rem; }
+        .category-item.checked { background-color: #e9f5ff; }
+    </style>
+}
+
+@section Scripts {
+    <script>
+        (function(){
+            document.querySelectorAll('.category-checkbox').forEach(function(cb){
+                // initialize visual state
+                toggleVisual(cb);
+                cb.addEventListener('change', function(){
+                    toggleVisual(cb);
+                });
+            });
+            function toggleVisual(cb){
+                var parent = cb.closest('.category-item');
+                var emojiSpan = parent.querySelector('.category-emoji');
+                if (cb.checked){
+                    parent.classList.add('checked');
+                    emojiSpan.textContent = '✅';
+                } else {
+                    parent.classList.remove('checked');
+                    emojiSpan.textContent = '';
+                }
+            }
+
+            // Price input: prevent entering more than 2 decimal places
+            document.querySelectorAll('.price-input').forEach(function(pi){
+                pi.addEventListener('input', function(e){
+                    var v = pi.value.replace(',', '.');
+                    if (v.indexOf('.') >= 0){
+                        var parts = v.split('.');
+                        if (parts[1].length > 2){
+                            parts[1] = parts[1].substr(0,2);
+                            pi.value = parts.join('.');
+                        }
+                    }
+                });
+            });
+
+            // Ensure empty price is submitted as 0 to avoid model binding errors
+            var createForm = document.querySelector('form[asp-action="CreateGame"]') || document.querySelector('form[method="post"][asp-action]');
+            if (!createForm) createForm = document.querySelector('form');
+            if (createForm) {
+                createForm.addEventListener('submit', function(e){
+                    document.querySelectorAll('.price-input').forEach(function(pi){
+                        if (!pi.value || pi.value.trim() === '') pi.value = '0';
+                    });
+                });
+            }
+
+        })();
+    </script>
+}

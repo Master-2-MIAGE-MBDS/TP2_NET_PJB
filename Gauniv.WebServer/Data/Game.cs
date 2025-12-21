@@ -42,7 +42,7 @@ namespace Gauniv.WebServer.Data
 
         [Required] [MaxLength(150)] public string Name { get; set; } = string.Empty;
 
-        [MaxLength(1000)] public string Description { get; set; } = string.Empty;
+        [MaxLength(1000)] public string? Description { get; set; }
 
         public byte[] Payload { get; set; } = new byte[0];
 
