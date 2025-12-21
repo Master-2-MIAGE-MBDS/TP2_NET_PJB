@@ -40,21 +40,28 @@ namespace Gauniv.WebServer.Dtos
         {
             TypeAdapterConfig config = TypeAdapterConfig.GlobalSettings;
 
+            // Map Game -> GameDto, with categories light
             config.NewConfig<Game, GameDto>()
                 .Map(dest => dest.Categories,
                     src => src.Categories.Select(c => new CategorieDtoLight { Libelle = c.Libelle }).ToList());
             config.NewConfig<GameDto, Game>();
 
-            config.NewConfig<Game, GameDtoLight>();
+            // Map Game -> GameDtoLight: Categories becomes List<string> of Libelle
+            config.NewConfig<Game, GameDtoLight>()
+                .Map(dest => dest.Categories,
+                    src => src.Categories.Select(c => c.Libelle).ToList());
+
+            // When mapping back ignore categories (we don't map strings to Categorie entities here)
             config.NewConfig<GameDtoLight, Game>()
                 .Ignore(dest => dest.Categories);
 
             config.NewConfig<Categorie, CategorieDtoLight>();
 
+            // Map Categorie -> CategorieDto with Games as GameDtoLight (do NOT include categories to avoid duplication)
             config.NewConfig<Categorie, CategorieDto>()
                 .Map(dest => dest.Games,
                     src => src.Games.Select(g =>
-                        new GameDtoLight { Name = g.Name, Description = g.Description, Price = g.Price }).ToList());
+                        new GameDtoLight { Id = g.Id, Name = g.Name, Description = g.Description, Price = g.Price, Categories = new List<string>() }).ToList());
             config.NewConfig<CategorieDto, Categorie>()
                 .Ignore(dest => dest.Games);
         }

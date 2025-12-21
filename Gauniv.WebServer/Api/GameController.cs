@@ -40,14 +40,14 @@ namespace Gauniv.WebServer.Api
 {
     [Route("api/1.0.0/[controller]/[action]")]
     [ApiController]
-    public class GamesController : ControllerBase
+    public class GameController : ControllerBase
     {
         private readonly ApplicationDbContext _db;
         private readonly IMapper _mapper;
         private readonly UserManager<User> _userManager;
         private readonly MappingProfile _mp;
 
-        public GamesController(ApplicationDbContext appDbContext, IMapper mapper, UserManager<User> userManager, MappingProfile mp)
+        public GameController(ApplicationDbContext appDbContext, IMapper mapper, UserManager<User> userManager, MappingProfile mp)
         {
             _db = appDbContext;
             _mapper = mapper;
@@ -57,6 +57,7 @@ namespace Gauniv.WebServer.Api
 
         /// <summary>
         /// Liste toutes les catégories disponibles.
+        /// Accessible anonymement.
         /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<CategorieDtoLight>>> Categories()
@@ -71,38 +72,78 @@ namespace Gauniv.WebServer.Api
 
         /// <summary>
         /// Liste des jeux avec pagination et filtrage par catégories.
-        /// Query examples:
-        /// /api/1.0.0/games/games?offset=10&limit=15
-        /// /api/1.0.0/games/games?category=3
-        /// /api/1.0.0/games/games?category[]=3&category[]=4
-        /// /api/1.0.0/games/games?offset=10&limit=15&category[]=3
+        /// Si query param "owned=true" est fourni, la liste renverra uniquement les jeux possédés par l'utilisateur connecté.
+        /// Exemples:
+        /// GET /api/1.0.0/game?offset=10&limit=15
+        /// GET /api/1.0.0/game?category=3
+        /// GET /api/1.0.0/game?category[]=3&category[]=4
+        /// GET /api/1.0.0/game?offset=10&limit=15&category[]=3&owned=true
         /// </summary>
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<GameDtoLight>>> Games([FromQuery] int? offset, [FromQuery] int? limit, [FromQuery(Name = "category")] int[]? category, [FromQuery(Name = "category[]")] int[]? categoryArray)
+        public async Task<ActionResult<IEnumerable<GameDtoLight>>> Games([FromQuery] int? offset, [FromQuery] int? limit, [FromQuery(Name = "category")] int[]? category, [FromQuery(Name = "category[]")] int[]? categoryArray, [FromQuery] bool? owned)
         {
             // determine categories from either ?category= or ?category[]=
             var categories = (categoryArray != null && categoryArray.Length > 0) ? categoryArray : (category != null && category.Length > 0 ? category : Array.Empty<int>());
-            IQueryable<Game> query = _db.Games.AsQueryable();
-            if (categories != null && categories.Length > 0)
-            {
-                query = query.Where(g => g.Categories.Any(c => categories.Contains(c.Id)));
-            }
-            // default pagination
+
+            // Default pagination
             int skip = offset.GetValueOrDefault(0);
             int take = limit.GetValueOrDefault(20);
             if (take <= 0) take = 20;
-            var items = await query
-                .Include(g => g.Categories)
-                .OrderBy(g => g.Name)
-                .Skip(skip)
-                .Take(take)
-                .ToListAsync();
+
+            List<Game> items = new();
+
+            if (owned.HasValue && owned.Value)
+            {
+                // User requested owned games => require authentication
+                if (!User.Identity?.IsAuthenticated ?? true)
+                {
+                    return Unauthorized(new { message = "Connexion requise pour lister les jeux possédés." });
+                }
+
+                var currentUser = await _userManager.GetUserAsync(User);
+                if (currentUser == null)
+                    return Unauthorized(new { message = "Utilisateur introuvable." });
+
+                // Charger la collection PurchasedGames et inclure les catégories pour chaque jeu
+                await _db.Entry(currentUser).Collection(u => u.PurchasedGames).Query().Include(g => g.Categories).LoadAsync();
+
+                var query = currentUser.PurchasedGames.AsQueryable();
+
+                if (categories != null && categories.Length > 0)
+                {
+                    query = query.Where(g => g.Categories.Any(c => categories.Contains(c.Id)));
+                }
+
+                items = query
+                    .OrderBy(g => g.Name)
+                    .Skip(skip)
+                    .Take(take)
+                    .ToList();
+            }
+            else
+            {
+                // Public games listing
+                IQueryable<Game> query = _db.Games.Include(g => g.Categories).AsQueryable();
+
+                if (categories != null && categories.Length > 0)
+                {
+                    query = query.Where(g => g.Categories.Any(c => categories.Contains(c.Id)));
+                }
+
+                items = await query
+                    .OrderBy(g => g.Name)
+                    .Skip(skip)
+                    .Take(take)
+                    .ToListAsync();
+            }
+
             var dtos = items.Select(g => new GameDtoLight
             {
-                Id = g.Id.ToString(),
+                Id = g.Id,
                 Name = g.Name,
                 Description = g.Description,
-                Price = g.Price
+                Price = g.Price,
+                Categories = g.Categories.Select(c => c.Libelle).ToList()
             }).ToList();
 
             return Ok(dtos);
