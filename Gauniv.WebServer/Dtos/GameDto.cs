@@ -45,5 +45,8 @@ namespace Gauniv.WebServer.Dtos
 
         // Indique si l'utilisateur courant possède ce jeu
         public bool Purchased { get; set; } = false;
+
+        // Indique si le jeu possède un binaire (payload) téléchargeable/instalable
+        public bool HasPayload { get; set; }
     }
 }

@@ -7,3 +7,4 @@
 /* Show install button on hover only for purchased cards */
 .game-card.purchased:hover .install-btn { display: inline-block !important; }
 
+

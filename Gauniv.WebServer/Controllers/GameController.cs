@@ -102,7 +102,8 @@ namespace Gauniv.WebServer.Controllers
                 Description = g.Description,
                 Price = g.Price,
                 Categories = g.Categories.Select(c => new CategorieDtoLight { Libelle = c.Libelle }).ToList(),
-                Purchased = purchasedIds.Contains(g.Id)
+                Purchased = purchasedIds.Contains(g.Id),
+                HasPayload = g.Payload != null && g.Payload.Length > 0
             }).ToList();
 
             // Renseigner les filtres sélectionnés

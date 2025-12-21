@@ -78,7 +78,7 @@
                         @if (Model.IsAuthenticated)
                         {
                             <button class="btn btn-success btn-sm purchase-btn d-none">Acheter</button>
-                            <button class="btn btn-secondary btn-sm install-btn d-none">Installer</button>
+                            <button class="btn @(g.HasPayload ? "btn-primary" : "btn-secondary") btn-sm install-btn d-none" data-has-payload="@(g.HasPayload ? "true" : "false")" @(g.HasPayload ? "" : "disabled=\"disabled\"") aria-disabled="@(g.HasPayload ? "false" : "true")" title="@(g.HasPayload ? "" : "Pas de binaire disponible")">Installer</button>
                         }
                     </div>
                 </div>
@@ -156,11 +156,77 @@
             }
 
             if (installBtn) {
-                installBtn.addEventListener('click', function(e){
+                installBtn.addEventListener('click', async function(e){
                     e.preventDefault();
                     const gid = card.dataset.gameId;
-                    // TODO: installer le jeu localement via action appropriée
-                    alert('Installer le jeu id=' + gid + ' (fonctionnalité non implémentée)');
+                    const hasPayloadAttr = installBtn.getAttribute('data-has-payload') || card.getAttribute('data-has-payload');
+                    const hasPayloadFlag = hasPayloadAttr === 'true';
+                    if (!hasPayloadFlag) {
+                        // Bouton disabled côté HTML ; si le handler est appelé, ne rien faire
+                        return;
+                    }
+
+                    try {
+                        const resp = await fetch(`/api/1.0.0/game/payload/${gid}`, { method: 'GET', credentials: 'same-origin' });
+
+                        if (resp.status === 200) {
+                            const blob = await resp.blob();
+
+                            // Essayer d'extraire le filename depuis l'en-tête Content-Disposition
+                            let fileName = '';
+                            const cd = resp.headers.get('Content-Disposition') || '';
+                            try {
+                                // RFC 5987: filename*=UTF-8''...
+                                const m = /filename\*=UTF-8''([^;\n]+)/i.exec(cd);
+                                if (m && m[1]) {
+                                    fileName = decodeURIComponent(m[1]);
+                                } else {
+                                  const m2 = /filename="?([^";]+)"?/i.exec(cd);
+                                  if (m2 && m2[1]) fileName = m2[1];
+                                }
+                            } catch (ex) { /* ignore */ }
+
+                            if (!fileName) {
+                                // fallback: use game title text or generic name
+                                const titleEl = card.querySelector('.card-title');
+                                const titleText = titleEl ? titleEl.textContent.trim() : '';
+                                fileName = (titleText ? titleText.replace(/[^a-z0-9_.-]/gi, '_') : `game_${gid}`) + '.bin';
+                            }
+
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = fileName;
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            setTimeout(() => URL.revokeObjectURL(url), 1000);
+                            return;
+                        }
+
+                        if (resp.status === 401) {
+                            window.location.href = '/Identity/Account/Login?returnUrl=' + encodeURIComponent(window.location.href);
+                            return;
+                        }
+
+                        if (resp.status === 403) {
+                            alert('Accès refusé : vous ne possédez pas ce jeu.');
+                            return;
+                        }
+
+                        if (resp.status === 404) {
+                            const text = await resp.text();
+                            alert((text && text.length) ? text : 'Binaire introuvable.');
+                            return;
+                        }
+
+                        const text = await resp.text();
+                        alert((text && text.length) ? text : ('Erreur lors du téléchargement (HTTP ' + resp.status + ')'));
+
+                    } catch (err) {
+                        alert('Erreur réseau lors du téléchargement : ' + err.message);
+                    }
+
                 });
             }
         });
