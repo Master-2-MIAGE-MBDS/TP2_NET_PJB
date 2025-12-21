@@ -1,0 +1,9 @@
+﻿.game-card { transition: transform .12s ease, box-shadow .12s ease; position: relative; }
+.game-card:hover { transform: translateY(-6px); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+.game-card .card-body { min-height: 120px; }
+.game-card .purchase-btn, .game-card .install-btn { pointer-events: auto; display: none; }
+/* Show purchase button on hover only for non-purchased cards */
+.game-card:not(.purchased):hover .purchase-btn { display: inline-block !important; }
+/* Show install button on hover only for purchased cards */
+.game-card.purchased:hover .install-btn { display: inline-block !important; }
+
