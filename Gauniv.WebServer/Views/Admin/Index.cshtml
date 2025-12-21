@@ -1,7 +1,120 @@
-﻿@{
-    ViewData["Title"] = "Gestion";
+﻿@model object
+@{
+    var section = (ViewData["Section"] as string) ?? "games";
+    ViewData["Title"] = "Administration";
 }
+<div class="row">
+    <div class="col-md-3">
+        <div class="list-group">
+            <a class="list-group-item list-group-item-action @(section=="games"?"active":"")" href="@Url.Action("Index","Admin", new { section = "games" })">Jeux</a>
+            <a class="list-group-item list-group-item-action @(section=="categories"?"active":"")" href="@Url.Action("Index","Admin", new { section = "categories" })">Catégories</a>
+        </div>
+        <div class="mt-3">
+            @if (section=="games")
+            {
+                <a class="btn btn-primary w-100" href="@Url.Action("CreateGame","Admin")">Ajouter un jeu</a>
+            }
+            else
+            {
+                <a class="btn btn-primary w-100" href="@Url.Action("CreateCategory","Admin")">Ajouter une catégorie</a>
+            }
+        </div>
+    </div>
+    <div class="col-md-9">
+        <h2>@(section=="games"?"Gestion des jeux":"Gestion des catégories")</h2>
+        <hr />
+        @if (section=="games")
+        {
+            var games = Model as List<Gauniv.WebServer.Data.Game>;
+            <table class="table table-striped">
+                <thead><tr><th>Nom</th><th>Prix</th><th>Catégories</th><th></th></tr></thead>
+                <tbody>
+                @if (games != null)
+                {
+                    foreach (var g in games)
+                    {
+                        <tr>
+                            <td>@g.Name</td>
+                            <td>@g.Price.ToString("C")</td>
+                            <td>@string.Join(", ", g.Categories.Select(c=>c.Libelle))</td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-secondary" href="@Url.Action("EditGame","Admin", new { id = g.Id })">Modifier</a>
+                                <form method="post" action="@Url.Action("DeleteGame","Admin", new { id = g.Id })" class="ajax-delete-form" style="display:inline-block">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn-sm btn-danger">Supprimer</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            var cats = Model as List<Gauniv.WebServer.Data.Categorie>;
+            <table class="table table-striped">
+                <thead><tr><th>Libellé</th><th></th></tr></thead>
+                <tbody>
+                @if (cats != null)
+                {
+                    foreach (var c in cats)
+                    {
+                        <tr>
+                            <td>@c.Libelle</td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-secondary" href="@Url.Action("EditCategory","Admin", new { id = c.Id })">Modifier</a>
+                                <form method="post" action="@Url.Action("DeleteCategory","Admin", new { id = c.Id })" class="ajax-delete-form" style="display:inline-block">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn-sm btn-danger">Supprimer</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
 
-<h1>Gestion</h1>
-<p>Page de gestion accessible aux administrateurs.</p>
+@section Scripts {
+    <script>
+        (function(){
+            function handleAjaxDelete(e){
+                e.preventDefault();
+                if (!confirm('Confirmer la suppression ?')) return false;
+                const form = e.target;
+                // collect form action and form data (includes antiforgery token)
+                const url = form.action;
+                const formData = new FormData(form);
+                fetch(url, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: formData
+                }).then(async resp => {
+                    if (resp.ok) {
+                        // remove the table row
+                        const tr = form.closest('tr');
+                        if (tr) tr.remove();
+                    } else if (resp.status === 401) {
+                        window.location.href = '/Identity/Account/Login?returnUrl=' + encodeURIComponent(window.location.href);
+                    } else {
+                        const text = await resp.text();
+                        alert('Erreur lors de la suppression: ' + (text || resp.status));
+                    }
+                }).catch(err => {
+                    alert('Erreur réseau lors de la suppression: ' + err.message);
+                });
+                return false;
+            }
 
+            document.addEventListener('DOMContentLoaded', function(){
+                document.querySelectorAll('form.ajax-delete-form').forEach(function(f){
+                    f.addEventListener('submit', handleAjaxDelete);
+                });
+            });
+        })();
+    </script>
+}
