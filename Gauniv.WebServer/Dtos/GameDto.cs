@@ -1,4 +1,4 @@
-﻿#region Header
+﻿﻿#region Header
 
 // Cyril Tisserand
 // Projet Gauniv - WebServer
@@ -42,5 +42,8 @@ namespace Gauniv.WebServer.Dtos
         public decimal Price { get; set; }
 
         public List<CategorieDtoLight> Categories { get; set; } = new();
+
+        // Indique si l'utilisateur courant possède ce jeu
+        public bool Purchased { get; set; } = false;
     }
 }

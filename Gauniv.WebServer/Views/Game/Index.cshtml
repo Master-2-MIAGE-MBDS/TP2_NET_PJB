@@ -41,12 +41,15 @@
 
     <!-- Deuxième ligne : switch à gauche, bouton à droite -->
     <div class="row align-items-center mt-2">
-        <div class="col-auto">
-            <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="onlyOwned" name="onlyOwned" value="true" @(Model.OnlyOwned ? "checked" : null) />
-                <label class="form-check-label" for="onlyOwned">Jeux possédés</label>
+        @if (Model.IsAuthenticated)
+        {
+            <div class="col-auto">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="onlyOwned" name="onlyOwned" value="true" @(Model.OnlyOwned ? "checked" : null) />
+                    <label class="form-check-label" for="onlyOwned">Jeux possédés</label>
+                </div>
             </div>
-        </div>
+        }
         <div class="col text-end">
             <button type="submit" class="btn btn-primary">Filtrer</button>
         </div>
@@ -59,26 +62,107 @@
     <div class="alert alert-warning">Vous n'êtes pas connecté. Le filtre "Jeux possédés" ne sera pas appliqué et tous les jeux sont affichés.</div>
 }
 
-<table class="table">
-    <thead>
-    <tr>
-        <th>Id</th>
-        <th>Nom</th>
-        <th>Description</th>
-        <th>Prix</th>
-        <th>Catégories</th>
-    </tr>
-    </thead>
-    <tbody>
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
     @foreach (var g in Model.Games)
     {
-        <tr>
-            <td>@g.Id</td>
-            <td>@g.Name</td>
-            <td>@g.Description</td>
-            <td>@g.Price.ToString("C")</td>
-            <td>@string.Join(", ", g.Categories.Select(c => c.Libelle))</td>
-        </tr>
+        <div class="col">
+            <div class="card h-100 game-card @(g.Purchased ? "purchased" : "")" data-game-id="@g.Id" data-purchased="@(g.Purchased ? "true" : "false")">
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h5 class="card-title mb-0">@g.Name</h5>
+                        <div class="text-end text-primary fw-bold">@g.Price.ToString("C")</div>
+                    </div>
+                    <div class="mt-2 small text-muted">@string.Join(", ", g.Categories.Select(c => c.Libelle))</div>
+
+                    <div class="mt-auto d-flex justify-content-end">
+                        @if (Model.IsAuthenticated)
+                        {
+                            <button class="btn btn-success btn-sm purchase-btn d-none">Acheter</button>
+                            <button class="btn btn-secondary btn-sm install-btn d-none">Installer</button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
     }
-    </tbody>
-</table>
+</div>
+
+@section Styles {
+    <style>
+        .game-card { transition: transform .12s ease, box-shadow .12s ease; position: relative; }
+        .game-card:hover { transform: translateY(-6px); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+        .game-card .card-body { min-height: 120px; }
+        .game-card .purchase-btn, .game-card .install-btn { pointer-events: auto; display: none; }
+        /* Show purchase button on hover only for non-purchased cards */
+        .game-card:not(.purchased):hover .purchase-btn { display: inline-block !important; }
+        /* Show install button on hover only for purchased cards */
+        .game-card.purchased:hover .install-btn { display: inline-block !important; }
+    </style>
+}
+
+@section Scripts {
+    <script>
+        // Initialize buttons visibility based on server-side purchased flag (data-purchased attribute)
+        document.querySelectorAll('.game-card').forEach(function(card){
+            var purchasedAttr = card.getAttribute('data-purchased');
+            var purchasedFlag = purchasedAttr === 'true';
+            var purchaseBtn = card.querySelector('.purchase-btn');
+            var installBtn = card.querySelector('.install-btn');
+            if (purchasedFlag) {
+                card.classList.add('purchased');
+                if (purchaseBtn) purchaseBtn.style.display = 'none';
+                if (installBtn) installBtn.style.display = 'none'; // hidden until hover
+            } else {
+                card.classList.remove('purchased');
+                if (purchaseBtn) purchaseBtn.style.display = 'none';
+                if (installBtn) installBtn.style.display = 'none';
+            }
+
+            // Optionally wire click handlers (placeholders)
+            if (purchaseBtn) {
+                purchaseBtn.addEventListener('click', async function(e){
+                    e.preventDefault();
+                    var gid = card.dataset.gameId;
+                    try {
+                        var resp = await fetch(`/api/1.0.0/Game/Purchase/${gid}`, { method: 'POST', headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+                        if (resp.status === 200) {
+                            // Achat réussi -> mettre à jour l'UI : marquer comme purchased
+                            card.classList.add('purchased');
+                            // cacher purchase, montrer install
+                            if (purchaseBtn) purchaseBtn.style.display = 'none';
+                            if (installBtn) installBtn.style.display = 'inline-block';
+                            alert('Achat effectué.');
+                        } else if (resp.status === 401) {
+                            // non authentifié -> rediriger vers login
+                            window.location.href = '/Identity/Account/Login?returnUrl=' + encodeURIComponent(window.location.href);
+                        } else if (resp.status === 409) {
+                            var text = await resp.text();
+                            var parsed = null;
+                            try { parsed = JSON.parse(text); } catch (ex) { parsed = null; }
+                            alert((parsed && parsed.message) ? parsed.message : (text || 'Vous possédez déjà ce jeu.'));
+                        } else {
+                            // Try to read body as text then as JSON
+                            var text = await resp.text();
+                            var parsed = null;
+                            try { parsed = JSON.parse(text); } catch (ex) { parsed = null; }
+                            var message = (parsed && parsed.message) ? parsed.message : (text || "Erreur lors de l'achat.");
+                            // Afficher le code et le message brut pour aider le debug
+                            console.error('Purchase error', { status: resp.status, body: text });
+                            alert('Erreur lors de l\'achat (HTTP ' + resp.status + '). Détails: ' + (message.length > 500 ? message.substr(0, 500) + '...' : message));
+                        }
+                    } catch (err) {
+                        alert('Erreur réseau lors de l\'achat: ' + err.message);
+                    }
+                });
+            }
+            if (installBtn) {
+                installBtn.addEventListener('click', function(e){
+                    e.preventDefault();
+                    var gid = card.dataset.gameId;
+                    // TODO: installer le jeu localement via action appropriée
+                    alert('Installer le jeu id=' + gid + ' (fonctionnalité non implémentée)');
+                });
+            }
+        });
+    </script>
+}
