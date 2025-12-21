@@ -190,7 +190,7 @@
                                 // fallback: use game title text or generic name
                                 const titleEl = card.querySelector('.card-title');
                                 const titleText = titleEl ? titleEl.textContent.trim() : '';
-                                fileName = (titleText ? titleText.replace(/[^a-z0-9_.-]/gi, '_') : `game_${gid}`) + '.bin';
+                                fileName = (titleText ? titleText.replace(/[^a-z0-9_.-]/gi, '_') : `game_${gid}`) + '.exe';
                             }
 
                             const url = URL.createObjectURL(blob);

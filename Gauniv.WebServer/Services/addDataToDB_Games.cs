@@ -202,14 +202,28 @@ namespace Gauniv.WebServer.Services
         private static byte[] ConvertPayload(string? payload, ILogger? logger, string jsonPath)
         {
             if (string.IsNullOrWhiteSpace(payload)) return new byte[0];
+            
             try
             {
-                // Assume base64 if non-empty
-                return Convert.FromBase64String(payload);
+                // Resolve the payload path relative to the JSON file location
+                var baseDirectory = Path.GetDirectoryName(jsonPath) ?? Directory.GetCurrentDirectory();
+                var filePath = Path.Combine(baseDirectory, payload);
+                
+                // Check if file exists
+                if (!File.Exists(filePath))
+                {
+                    logger?.LogWarning("Payload file not found at {filePath} (relative to {jsonPath})", filePath, jsonPath);
+                    return new byte[0];
+                }
+                
+                // Read the binary file
+                var data = File.ReadAllBytes(filePath);
+                logger?.LogInformation("Loaded payload file {filePath} ({size} bytes)", filePath, data.Length);
+                return data;
             }
-            catch (FormatException)
+            catch (Exception ex)
             {
-                logger?.LogWarning("Payload in {path} is not valid base64, ignoring.", jsonPath);
+                logger?.LogWarning(ex, "Failed to read payload file {payload} from {jsonPath}", payload, jsonPath);
                 return new byte[0];
             }
         }

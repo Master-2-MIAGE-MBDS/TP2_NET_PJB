@@ -322,9 +322,9 @@ namespace Gauniv.WebServer.Api
             }
 
             // Retourner le payload comme un fichier téléchargeable
-            var fileName = string.IsNullOrWhiteSpace(game.Name) ? $"game_{id}.bin" : string.Concat(game.Name.Where(c => !Path.GetInvalidFileNameChars().Contains(c))).Trim();
-            if (string.IsNullOrWhiteSpace(fileName)) fileName = $"game_{id}.bin";
-            fileName = fileName + ".bin";
+            var fileName = string.IsNullOrWhiteSpace(game.Name) ? $"game_{id}.exe" : string.Concat(game.Name.Where(c => !Path.GetInvalidFileNameChars().Contains(c))).Trim();
+            if (string.IsNullOrWhiteSpace(fileName)) fileName = $"game_{id}.exe";
+            fileName = fileName + ".exe";
 
             return File(game.Payload, "application/octet-stream", fileName);
         }
@@ -364,9 +364,9 @@ namespace Gauniv.WebServer.Api
                 var userDir = Path.Combine(installsRoot, userId);
                 Directory.CreateDirectory(userDir);
 
-                var fileName = string.IsNullOrWhiteSpace(game.Name) ? $"game_{id}.bin" : string.Concat(game.Name.Where(c => !Path.GetInvalidFileNameChars().Contains(c))).Trim();
+                var fileName = string.IsNullOrWhiteSpace(game.Name) ? $"game_{id}.exe" : string.Concat(game.Name.Where(c => !Path.GetInvalidFileNameChars().Contains(c))).Trim();
                 if (string.IsNullOrWhiteSpace(fileName)) fileName = $"game_{id}";
-                fileName = fileName + ".bin";
+                fileName = fileName + ".exe";
 
                 var destPath = Path.Combine(userDir, fileName);
                 await System.IO.File.WriteAllBytesAsync(destPath, game.Payload);

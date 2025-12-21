@@ -83,6 +83,13 @@
       "price": 12.99,
       "payload": "",
       "genres": ["Sandbox", "Open World", "Indé"]
+    },
+    {
+      "name": "Political TictacLoi",
+      "description": "Morpion mais avec de la politique",
+      "price": 15.99,
+      "payload": "./Games/TicTacToe.exe",
+      "genres": ["Stratégie", "Stratégie tour par tour"]
     }
   ]
 }
