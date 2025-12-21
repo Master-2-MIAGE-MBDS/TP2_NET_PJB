@@ -9,6 +9,30 @@ Remarque : en développement un utilisateur de test est seedé par `SetupService
 - Email : `test@test.com`
 - Mot de passe : `password`
 
+## Comptes de test (ToDB_User.json)
+
+Un fichier `ToDB_User.json` est fourni à la racine du projet pour seed des comptes de développement :
+
+- **client@test.local**
+  - Email / UserName : `client@test.local`
+  - Password : `Pa$$w0rdClient!`
+  - Roles : `User`
+  - Usage : utilisateur standard pour tester l'interface et les endpoints publics/protégés (non‑admin).
+
+- **admin@test.local**
+  - Email / UserName : `admin@test.local`
+  - Password : `Pa$$w0rdAdmin!`
+  - Roles : `Admin`
+  - Usage : compte administrateur pour tester les pages/actions restreintes (onglet "Gestion" visible).
+
+> Remarque de sécurité : ces comptes et mots de passe sont fournis pour le développement local uniquement ; ne jamais conserver de mots de passe en clair en production.
+
+### Seed rapide depuis `ToDB_User.json`
+
+Copier le fichier `ToDB_User.json` dans la racine du projet (déjà présent) puis ajouter un petit seed au démarrage (ex. dans `Program.cs`) qui lit le JSON, crée les rôles et les utilisateurs si nécessaire. Voir le snippet de seed fourni dans le README général du projet.
+
+Après seed, connectez‑vous avec `admin@test.local` pour vérifier l'apparition de l'onglet **Gestion** et l'accès aux pages administrateur.
+
 Collection Postman
 - Importer la collection : `Gauniv_WebServer_API - Tests.postman_collection.json`.
 - La collection contient des requêtes prêtes à l'emploi pour : login, lister catégories, lister jeux (publics) et lister "mes jeux" (avec JWT).
