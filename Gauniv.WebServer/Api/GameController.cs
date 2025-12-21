@@ -35,6 +35,10 @@ using MapsterMapper;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Text;
 
 namespace Gauniv.WebServer.Api
 {
@@ -46,13 +50,15 @@ namespace Gauniv.WebServer.Api
         private readonly IMapper _mapper;
         private readonly UserManager<User> _userManager;
         private readonly MappingProfile _mp;
+        private readonly IConfiguration _config;
 
-        public GameController(ApplicationDbContext appDbContext, IMapper mapper, UserManager<User> userManager, MappingProfile mp)
+        public GameController(ApplicationDbContext appDbContext, IMapper mapper, UserManager<User> userManager, MappingProfile mp, IConfiguration config)
         {
             _db = appDbContext;
             _mapper = mapper;
             _userManager = userManager;
             _mp = mp;
+            _config = config;
         }
 
         /// <summary>
@@ -94,15 +100,74 @@ namespace Gauniv.WebServer.Api
 
             if (owned.HasValue && owned.Value)
             {
-                // User requested owned games => require authentication
-                if (!User.Identity?.IsAuthenticated ?? true)
+                // Supporte deux modes d'authentification pour accéder aux jeux possédés:
+                // 1) L'utilisateur est connecté via le middleware (cookie/session)
+                // 2) Le client fournit un JWT valide dans Authorization: Bearer <token>
+                User? currentUser = null;
+
+                // Si l'utilisateur est authentifié via le middleware (cookie/session ou bearer middleware)
+                if (User.Identity?.IsAuthenticated ?? false)
                 {
-                    return Unauthorized(new { message = "Connexion requise pour lister les jeux possédés." });
+                    currentUser = await _userManager.GetUserAsync(User);
                 }
 
-                var currentUser = await _userManager.GetUserAsync(User);
+                // Si pas d'utilisateur trouvé via le middleware, essayer d'extraire et valider un JWT Bearer explicitement
                 if (currentUser == null)
-                    return Unauthorized(new { message = "Utilisateur introuvable." });
+                {
+                    var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+                    if (!string.IsNullOrWhiteSpace(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var token = authHeader.Substring("Bearer ".Length).Trim();
+                        var jwtKey = _config.GetValue<string>("Jwt:Key");
+                        var jwtIssuer = _config.GetValue<string>("Jwt:Issuer") ?? "Gauniv";
+                        var jwtAudience = _config.GetValue<string>("Jwt:Audience") ?? "GaunivClient";
+
+                        if (string.IsNullOrWhiteSpace(jwtKey))
+                        {
+                            return Problem("Server JWT configuration missing.");
+                        }
+
+                        var tokenHandler = new JwtSecurityTokenHandler();
+                        var validationParameters = new TokenValidationParameters
+                        {
+                            ValidateIssuer = true,
+                            ValidateAudience = true,
+                            ValidateIssuerSigningKey = true,
+                            ValidIssuer = jwtIssuer,
+                            ValidAudience = jwtAudience,
+                            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+                            ValidateLifetime = true,
+                            ClockSkew = TimeSpan.Zero
+                        };
+
+                        try
+                        {
+                            var principal = tokenHandler.ValidateToken(token, validationParameters, out var _);
+                            var sub = principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+                            if (string.IsNullOrWhiteSpace(sub))
+                            {
+                                return Unauthorized(new { message = "JWT token invalide : claim 'sub' manquante." });
+                            }
+
+                            // Récupère l'utilisateur référencé par la claim 'sub'
+                            currentUser = await _userManager.FindByIdAsync(sub);
+                            if (currentUser == null)
+                            {
+                                return Unauthorized(new { message = "Utilisateur introuvable pour le JWT fourni." });
+                            }
+                        }
+                        catch (SecurityTokenException stEx)
+                        {
+                            return Unauthorized(new { message = "JWT token invalide: " + stEx.Message });
+                        }
+                    }
+                }
+
+                // Si aucun mode d'authentification n'a donné d'utilisateur valide -> Unauthorized
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { message = "Connexion requise pour lister les jeux possédés (session ou JWT)." });
+                }
 
                 // Charger la collection PurchasedGames et inclure les catégories pour chaque jeu
                 await _db.Entry(currentUser).Collection(u => u.PurchasedGames).Query().Include(g => g.Categories).LoadAsync();
