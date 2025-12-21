@@ -41,6 +41,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using System.IO;
+using Microsoft.AspNetCore.Hosting;
 
 namespace Gauniv.WebServer.Api
 {
@@ -54,8 +56,9 @@ namespace Gauniv.WebServer.Api
         private readonly MappingProfile _mp;
         private readonly IConfiguration _config;
         private readonly ILogger<GameController> _logger;
+        private readonly IWebHostEnvironment _env;
 
-        public GameController(ApplicationDbContext appDbContext, IMapper mapper, UserManager<User> userManager, MappingProfile mp, IConfiguration config, ILogger<GameController> logger)
+        public GameController(ApplicationDbContext appDbContext, IMapper mapper, UserManager<User> userManager, MappingProfile mp, IConfiguration config, ILogger<GameController> logger, IWebHostEnvironment env)
         {
             _db = appDbContext;
             _mapper = mapper;
@@ -63,11 +66,13 @@ namespace Gauniv.WebServer.Api
             _mp = mp;
             _config = config;
             _logger = logger;
+            _env = env;
         }
 
         /// <summary>
         /// Liste toutes les catégories disponibles.
         /// Accessible anonymement.
+        /// GET /api/1.0.0/game/categories
         /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<CategorieDtoLight>>> Categories()
@@ -84,10 +89,10 @@ namespace Gauniv.WebServer.Api
         /// Liste des jeux avec pagination et filtrage par catégories.
         /// Si query param "owned=true" est fourni, la liste renverra uniquement les jeux possédés par l'utilisateur connecté.
         /// Exemples:
-        /// GET /api/1.0.0/game?offset=10&limit=15
-        /// GET /api/1.0.0/game?category=3
-        /// GET /api/1.0.0/game?category[]=3&category[]=4
-        /// GET /api/1.0.0/game?offset=10&limit=15&category[]=3&owned=true
+        /// GET /api/1.0.0/game/games?offset=10&limit=15
+        /// GET /api/1.0.0/game/games?category=3
+        /// GET /api/1.0.0/game/games?category[]=3&category[]=4
+        /// GET /api/1.0.0/game/games?offset=10&limit=15&category[]=3&owned=true
         /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<GameDtoLight>>> Games([FromQuery] int? offset, [FromQuery] int? limit, [FromQuery(Name = "category")] int[]? category, [FromQuery(Name = "category[]")] int[]? categoryArray, [FromQuery] bool? owned)
@@ -279,5 +284,105 @@ namespace Gauniv.WebServer.Api
                 return StatusCode(500, new { message = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Renvoie le binaire du jeu en tant que fichier téléchargeable.
+        /// Accessible uniquement à l'utilisateur qui possède le jeu (acheté).
+        /// GET /api/1.0.0/game/payload/{id}
+        /// </summary>
+        [HttpGet("{id:int}")]
+        [Authorize]
+        public async Task<IActionResult> Payload(int id)
+        {
+            // Récupérer le jeu
+            var game = await _db.Games.FindAsync(id);
+            if (game == null)
+            {
+                return NotFound(new { message = "Jeu introuvable." });
+            }
+
+            if (game.Payload == null || game.Payload.Length == 0)
+            {
+                return NotFound(new { message = "Aucun binaire disponible pour ce jeu." });
+            }
+
+            // Vérifier que l'utilisateur possède le jeu
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Unauthorized(new { message = "Utilisateur non authentifié." });
+            }
+
+            var dbUser = await _db.Users.Include(u => u.PurchasedGames).FirstOrDefaultAsync(u => u.Id == userId);
+            if (dbUser == null) return Unauthorized(new { message = "Utilisateur introuvable." });
+
+            if (!dbUser.PurchasedGames.Any(g => g.Id == id))
+            {
+                return Forbid();
+            }
+
+            // Retourner le payload comme un fichier téléchargeable
+            var fileName = string.IsNullOrWhiteSpace(game.Name) ? $"game_{id}.bin" : string.Concat(game.Name.Where(c => !Path.GetInvalidFileNameChars().Contains(c))).Trim();
+            if (string.IsNullOrWhiteSpace(fileName)) fileName = $"game_{id}.bin";
+            fileName = fileName + ".bin";
+
+            return File(game.Payload, "application/octet-stream", fileName);
+        }
+
+        /// <summary>
+        /// Copie localement le binaire d'un jeu sur le serveur pour l'utilisateur propriétaire.
+        /// POST /api/1.0.0/game/InstallLocal/{id}
+        /// </summary>
+        [HttpPost("{id:int}")]
+        [Authorize]
+        public async Task<IActionResult> InstallLocal(int id)
+        {
+            _logger?.LogInformation("InstallLocal request for game {GameId}", id);
+
+            var game = await _db.Games.FindAsync(id);
+            if (game == null) return NotFound(new { message = "Jeu introuvable." });
+
+            if (game.Payload == null || game.Payload.Length == 0)
+            {
+                return NotFound(new { message = "Aucun binaire disponible pour ce jeu." });
+            }
+
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrWhiteSpace(userId)) return Unauthorized(new { message = "Utilisateur non authentifié." });
+
+            var dbUser = await _db.Users.Include(u => u.PurchasedGames).FirstOrDefaultAsync(u => u.Id == userId);
+            if (dbUser == null) return Unauthorized(new { message = "Utilisateur introuvable." });
+
+            if (!dbUser.PurchasedGames.Any(g => g.Id == id))
+            {
+                return Forbid();
+            }
+
+            try
+            {
+                var installsRoot = Path.Combine(_env.ContentRootPath, "Installs");
+                var userDir = Path.Combine(installsRoot, userId);
+                Directory.CreateDirectory(userDir);
+
+                var fileName = string.IsNullOrWhiteSpace(game.Name) ? $"game_{id}.bin" : string.Concat(game.Name.Where(c => !Path.GetInvalidFileNameChars().Contains(c))).Trim();
+                if (string.IsNullOrWhiteSpace(fileName)) fileName = $"game_{id}";
+                fileName = fileName + ".bin";
+
+                var destPath = Path.Combine(userDir, fileName);
+                await System.IO.File.WriteAllBytesAsync(destPath, game.Payload);
+
+                var relativePath = Path.GetRelativePath(_env.ContentRootPath, destPath);
+                _logger?.LogInformation("Payload for game {GameId} written to {Dest} for user {UserId}", id, destPath, userId);
+
+                return Ok(new { message = "Binaire copié localement.", path = relativePath, fullPath = destPath });
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error writing payload for game {GameId} to server", id);
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
     }
 }
+
+
