@@ -216,7 +216,7 @@ namespace Gauniv.WebServer.Api
                 Id = g.Id,
                 Name = g.Name,
                 Description = g.Description,
-                Price = g.Price,
+                Price = g.Price.GetValueOrDefault(),
                 Categories = g.Categories.Select(c => c.Libelle).ToList()
             }).ToList();
 

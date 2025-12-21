@@ -35,7 +35,7 @@
                     {
                         <tr>
                             <td>@g.Name</td>
-                            <td>@g.Price.ToString("C")</td>
+                            <td>@(g.Price.HasValue ? g.Price.Value.ToString("C") : string.Empty)</td>
                             <td>@string.Join(", ", g.Categories.Select(c=>c.Libelle))</td>
                             <td class="text-end">
                                 <a class="btn btn-sm btn-secondary" href="@Url.Action("EditGame","Admin", new { id = g.Id })">Modifier</a>

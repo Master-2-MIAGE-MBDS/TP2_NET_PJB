@@ -61,7 +61,14 @@ namespace Gauniv.WebServer.Dtos
             config.NewConfig<Categorie, CategorieDto>()
                 .Map(dest => dest.Games,
                     src => src.Games.Select(g =>
-                        new GameDtoLight { Id = g.Id, Name = g.Name, Description = g.Description, Price = g.Price, Categories = new List<string>() }).ToList());
+                        new GameDtoLight
+                        {
+                            Id = g.Id,
+                            Name = g.Name,
+                            Description = g.Description,
+                            Price = g.Price.GetValueOrDefault(),
+                            Categories = g.Categories.Select(c => c.Libelle).ToList()
+                        }).ToList());
             config.NewConfig<CategorieDto, Categorie>()
                 .Ignore(dest => dest.Games);
         }
