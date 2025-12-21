@@ -99,12 +99,9 @@ var jwtKey = jwtSection.GetValue<string>("Key") ?? throw new InvalidOperationExc
 var jwtIssuer = jwtSection.GetValue<string>("Issuer") ?? "Gauniv";
 var jwtAudience = jwtSection.GetValue<string>("Audience") ?? "GaunivClient";
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
+// IMPORTANT: do not overwrite the default authentication scheme configured by Identity (cookies)
+// Register JwtBearer handler without changing the defaults so the UI (cookie auth) keeps working.
+builder.Services.AddAuthentication().AddJwtBearer(options =>
 {
     options.RequireHttpsMetadata = false; // for dev
     options.SaveToken = true;
