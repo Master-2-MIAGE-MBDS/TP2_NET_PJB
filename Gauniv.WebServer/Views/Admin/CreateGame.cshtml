@@ -5,6 +5,7 @@
 }
 <h2>Créer un jeu</h2>
 <form method="post" asp-action="CreateGame">
+    @Html.ValidationSummary(true, "", new { @class = "text-danger" })
     <div class="mb-3">
         <label class="form-label">Nom</label>
         <input asp-for="Name" class="form-control" />
@@ -16,7 +17,8 @@
     </div>
     <div class="mb-3">
         <label class="form-label">Prix</label>
-        <input asp-for="Price" class="form-control price-input" step="0.01" inputmode="decimal" pattern="^\d+(?:[\.,]\d{1,2})?$" value="@(Model.Price == 0 ? string.Empty : Model.Price.ToString("0.##"))" />
+        <input asp-for="Price" class="form-control price-input" step="0.01" inputmode="decimal" value="@(Model.Price.HasValue ? Model.Price.Value.ToString("0.##") : string.Empty)" />
+        <span asp-validation-for="Price" class="text-danger"></span>
     </div>
     <div class="mb-3">
         <label class="form-label">Catégories</label>
@@ -43,10 +45,20 @@
         .category-item { cursor: pointer; }
         .category-item .category-emoji { font-size: 1.1rem; }
         .category-item.checked { background-color: #e9f5ff; }
+        .categories-checkbox-list {
+            max-height: 220px;
+            overflow-y: auto;
+            padding: 0.25rem;
+            border: 1px solid #e9ecef;
+            border-radius: 0.25rem;
+            background-color: #fff;
+        }
+        .categories-checkbox-list .category-item { display: block; margin-bottom: 0.25rem; }
     </style>
 }
 
 @section Scripts {
+    @await Html.PartialAsync("_ValidationScriptsPartial")
     <script>
         (function(){
             document.querySelectorAll('.category-checkbox').forEach(function(cb){
@@ -70,7 +82,7 @@
 
             // Price input: prevent entering more than 2 decimal places
             document.querySelectorAll('.price-input').forEach(function(pi){
-                pi.addEventListener('input', function(e){
+                pi.addEventListener('input', function(){
                     var v = pi.value.replace(',', '.');
                     if (v.indexOf('.') >= 0){
                         var parts = v.split('.');
@@ -82,16 +94,7 @@
                 });
             });
 
-            // Ensure empty price is submitted as 0 to avoid model binding errors
-            var createForm = document.querySelector('form[asp-action="CreateGame"]') || document.querySelector('form[method="post"][asp-action]');
-            if (!createForm) createForm = document.querySelector('form');
-            if (createForm) {
-                createForm.addEventListener('submit', function(e){
-                    document.querySelectorAll('.price-input').forEach(function(pi){
-                        if (!pi.value || pi.value.trim() === '') pi.value = '0';
-                    });
-                });
-            }
+            // No submit hijack: let client-side validation show errors (price is required)
 
         })();
     </script>

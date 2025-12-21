@@ -46,7 +46,9 @@ namespace Gauniv.WebServer.Data
 
         public byte[] Payload { get; set; } = new byte[0];
 
-        public decimal Price { get; set; } = 0m;
+        [Required(ErrorMessage = "Le prix est requis.")]
+        [Range(0, double.MaxValue, ErrorMessage = "Le prix doit être positif.")]
+        public decimal? Price { get; set; }
 
         public ICollection<Categorie> Categories { get; set; } = new List<Categorie>();
     }

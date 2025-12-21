@@ -128,7 +128,13 @@ namespace Gauniv.WebServer.Controllers
             }
 
             // Server-side: ensure price has at most 2 decimals
-            var scaledCreate = model.Price * 100m;
+            if (!model.Price.HasValue)
+            {
+                ModelState.AddModelError("Price", "Le prix est requis.");
+                ViewData["AllCategories"] = await _db.Categories.OrderBy(c => c.Libelle).ToListAsync();
+                return View(model);
+            }
+            var scaledCreate = model.Price.Value * 100m;
             if (decimal.Truncate(scaledCreate) != scaledCreate)
             {
                 ModelState.AddModelError("Price", "Le prix ne peut pas avoir plus de 2 décimales.");
@@ -166,7 +172,13 @@ namespace Gauniv.WebServer.Controllers
             }
 
             // Server-side: ensure price has at most 2 decimals
-            var scaledEdit = model.Price * 100m;
+            if (!model.Price.HasValue)
+            {
+                ModelState.AddModelError("Price", "Le prix est requis.");
+                ViewData["AllCategories"] = await _db.Categories.OrderBy(c => c.Libelle).ToListAsync();
+                return View(model);
+            }
+            var scaledEdit = model.Price.Value * 100m;
             if (decimal.Truncate(scaledEdit) != scaledEdit)
             {
                 ModelState.AddModelError("Price", "Le prix ne peut pas avoir plus de 2 décimales.");

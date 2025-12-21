@@ -100,7 +100,7 @@ namespace Gauniv.WebServer.Controllers
                 Id = g.Id,
                 Name = g.Name,
                 Description = g.Description,
-                Price = g.Price,
+                Price = g.Price.GetValueOrDefault(),
                 Categories = g.Categories.Select(c => new CategorieDtoLight { Libelle = c.Libelle }).ToList(),
                 Purchased = purchasedIds.Contains(g.Id),
                 HasPayload = g.Payload != null && g.Payload.Length > 0
