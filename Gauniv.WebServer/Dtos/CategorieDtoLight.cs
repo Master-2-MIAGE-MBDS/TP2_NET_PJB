@@ -2,7 +2,7 @@
 {
     public class CategorieDtoLight
     {
-        public string Id { get; set; } = string.Empty;
+        public int Id { get; set; } 
         public string Libelle { get; set; } = string.Empty;
     }
 }
